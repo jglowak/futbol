@@ -1,0 +1,19 @@
+---
+import type { MatchRow } from '../lib/db';
+import { formatKickoff, scoreText } from '../lib/format';
+import Crest from './Crest.astro';
+interface Props { m: MatchRow }
+const { m } = Astro.props;
+---
+<a class="row" href={`/admin/partido/${m.id}`}>
+  <div class="home">{m.home_short ?? m.home_name} <Crest src={m.home_crest} name={m.home_name} size={22} /></div>
+  <div class="score">{scoreText(m)}</div>
+  <div class="away"><Crest src={m.away_crest} name={m.away_name} size={22} /> {m.away_short ?? m.away_name}</div>
+  <div class="meta">
+    {m.status === 'live' ? <span class="live">● En vivo{m.minute ? ` ${m.minute}'` : ''}</span>
+      : m.status === 'finished' ? 'Final'
+      : m.status === 'postponed' ? 'Postergado'
+      : formatKickoff(m.kickoff_at)}
+    {' · '}{m.tournament_name}{m.group_name ? ` · ${m.group_name}` : ''}{m.round ? ` · ${m.round}` : ''}
+  </div>
+</a>

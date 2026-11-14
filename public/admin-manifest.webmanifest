@@ -1,0 +1,9 @@
+{
+  "name": "Fútbol Florida · Panel",
+  "short_name": "Panel FF",
+  "start_url": "/admin",
+  "display": "standalone",
+  "background_color": "#f3f5f7",
+  "theme_color": "#0a6b3d",
+  "icons": [{ "src": "/admin-icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}

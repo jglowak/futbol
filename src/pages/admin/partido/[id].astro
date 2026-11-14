@@ -1,0 +1,88 @@
+---
+import Admin from '../../../layouts/Admin.astro';
+import Crest from '../../../components/Crest.astro';
+import { adminMatch, lastUndoableEntry, matchHistory } from '../../../lib/admin';
+import { formatKickoff } from '../../../lib/format';
+
+const id = Number(Astro.params.id);
+const m = Number.isInteger(id) ? await adminMatch(id) : null;
+if (!m) return new Response('Partido no encontrado', { status: 404 });
+
+const [history, undoable] = await Promise.all([matchHistory(id, 15), lastUndoableEntry(id)]);
+const api = `/api/admin/partido/${id}`;
+const isLive = m.status === 'live';
+const isFinal = m.status === 'finished';
+const hg = m.home_goals ?? 0;
+const ag = m.away_goals ?? 0;
+
+const LABEL: Record<string, string> = { scheduled: 'Programado', live: 'En vivo', finished: 'Final', postponed: 'Postergado' };
+const describe = (e: (typeof history)[number]) => {
+  const b = e.payload.before, a = e.payload.after;
+  const score = (s: typeof a) => (s.home_goals === null ? '—' : `${s.home_goals}-${s.away_goals}`);
+  if (e.action === 'undo') return `Deshacer → ${score(a)} (${LABEL[a.status] ?? a.status})`;
+  if (e.action === 'goal') return `Gol: ${score(b)} → ${score(a)}`;
+  if (e.action === 'status') return `Estado: ${LABEL[b.status] ?? b.status} → ${LABEL[a.status] ?? a.status}`;
+  if (e.action === 'minute') return `Minuto: ${b.minute ?? '—'} → ${a.minute ?? '—'}`;
+  return e.action;
+};
+const when = (iso: string) =>
+  new Intl.DateTimeFormat('es-UY', { timeZone: 'America/Montevideo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(iso + 'Z'));
+---
+<Admin title={`${m.home_short ?? m.home_name} vs ${m.away_short ?? m.away_name}`} back="/admin">
+  <p class="history" style="margin:0 0 .6rem">
+    {m.tournament_name}{m.group_name ? ` · ${m.group_name}` : ''}{m.round ? ` · ${m.round}` : ''} · {formatKickoff(m.kickoff_at)}
+  </p>
+
+  <div class="card">
+    <div class="board">
+      <div>
+        <Crest src={m.home_crest} name={m.home_name} size={44} />
+        <div class="team">{m.home_short ?? m.home_name}</div>
+        <div class="big">{m.home_goals ?? '–'}</div>
+      </div>
+      <div class="vs">
+        {isLive ? <span class="live">● {m.minute ? `${m.minute}'` : 'vivo'}</span> : isFinal ? 'Final' : LABEL[m.status] ?? m.status}
+      </div>
+      <div>
+        <Crest src={m.away_crest} name={m.away_name} size={44} />
+        <div class="team">{m.away_short ?? m.away_name}</div>
+        <div class="big">{m.away_goals ?? '–'}</div>
+      </div>
+    </div>
+
+    <div class="btns">
+      <form class="inline" method="post" action={api}><button name="action" value="home_plus">+1 {m.home_short ?? 'Local'}</button></form>
+      <form class="inline" method="post" action={api}><button name="action" value="away_plus">+1 {m.away_short ?? 'Visitante'}</button></form>
+      <form class="inline" method="post" action={api}><button class="minus" name="action" value="home_minus" disabled={hg === 0}>−1</button></form>
+      <form class="inline" method="post" action={api}><button class="minus" name="action" value="away_minus" disabled={ag === 0}>−1</button></form>
+    </div>
+  </div>
+
+  <h2>Estado</h2>
+  <div class="status-grid">
+    <form method="post" action={api}><button class:list={['ghost', { current: m.status === 'scheduled' }]} name="action" value="scheduled">Programado</button></form>
+    <form method="post" action={api}><button class:list={['danger', { current: isLive }]} name="action" value="live">En vivo</button></form>
+    <form method="post" action={api}><button class:list={[{ current: isFinal }]} name="action" value="finished">Final</button></form>
+    <form method="post" action={api}><button class:list={['warn', { current: m.status === 'postponed' }]} name="action" value="postponed">Postergado</button></form>
+  </div>
+
+  {isLive && (
+    <>
+      <h2>Minuto (opcional)</h2>
+      <form method="post" action={api} class="minute">
+        <input type="number" name="minute" min="0" max="130" inputmode="numeric" value={m.minute ?? ''} placeholder="min" />
+        <button name="action" value="minute" style="min-height:48px">Guardar</button>
+      </form>
+    </>
+  )}
+
+  <h2>Historial</h2>
+  <form method="post" action={api}>
+    <button class="ghost" name="action" value="undo" disabled={!undoable}>↶ Deshacer último cambio</button>
+  </form>
+  {history.length > 0 && (
+    <ul class="history" style="list-style:none;padding:0;margin:.6rem 0 0">
+      {history.map((e) => <li>{when(e.at)} · {describe(e)} <span style="opacity:.7">({e.actor})</span></li>)}
+    </ul>
+  )}
+</Admin>

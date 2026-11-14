@@ -46,8 +46,23 @@ npm test                      # tests del cálculo de tablas
 
 Las páginas llevan `noindex` mientras sea una prueba: quitarlo en `src/layouts/Base.astro` al pasar a producción.
 
+## Panel de carga (`/admin`)
+
+Pensado para el celular: lista de partidos (en juego, hoy, próximos, últimos) y, por partido,
+botones de gol (+1/−1), estado (Programado / En vivo / Final / Postergado), minuto opcional y
+**Deshacer**. Cada cambio queda en `audit_log` con antes/después y autor.
+
+Acceso (en este orden):
+1. **Cloudflare Access**, si están definidos `CF_ACCESS_TEAM_DOMAIN` (ej. `miequipo.cloudflareaccess.com`)
+   y `CF_ACCESS_AUD` (el Application Audience tag): se verifica el JWT de Access.
+2. **Clave de administrador**: secreto `ADMIN_PASSWORD` en el Worker → login en `/admin/login`,
+   cookie firmada por 30 días (`ADMIN_SESSION_SECRET` opcional para firmar con otro valor).
+
+Sin ninguna de las dos, el panel queda cerrado. En local: `.dev.vars` con `ADMIN_PASSWORD=...`.
+Las páginas públicas se actualizan en ~20 s (caché de borde).
+
 ## Próximos pasos
 
-- Panel de carga de resultados (PWA, mobile-first) con autenticación.
+- Panel: goleadores y tarjetas por partido (eventos), colaboradores con acceso a un solo partido.
 - Plantillas de torneo (Apertura/Clausura, copa eliminatoria) y motor de etapas condicionales.
 - Alineaciones y goles desde la planilla (foto → IA → revisión).

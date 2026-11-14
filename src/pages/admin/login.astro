@@ -1,0 +1,35 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import { checkPassword, COOKIE, createSessionToken, getSession, passwordLoginEnabled, sessionCookieOptions } from '../../lib/auth';
+
+const next = Astro.url.searchParams.get('next') || '/admin';
+const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/admin';
+if (await getSession(Astro.request)) return Astro.redirect(safeNext);
+
+let error = '';
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const pass = String(form.get('password') ?? '');
+  if (await checkPassword(pass)) {
+    Astro.cookies.set(COOKIE, await createSessionToken('admin'), sessionCookieOptions(Astro.url.protocol === 'https:'));
+    return Astro.redirect(safeNext, 303);
+  }
+  error = 'Clave incorrecta.';
+  await new Promise((r) => setTimeout(r, 800)); // frena intentos automáticos
+}
+Astro.response.headers.set('Cache-Control', 'no-store');
+---
+<Admin title="Ingresar">
+  <div class="login card" style="padding:1.2rem">
+    {passwordLoginEnabled() ? (
+      <form method="post">
+        <label for="password"><strong>Clave del panel</strong></label>
+        <input id="password" name="password" type="password" autocomplete="current-password" autofocus required />
+        {error && <p class="err">{error}</p>}
+        <button type="submit">Entrar</button>
+      </form>
+    ) : (
+      <p>El panel todavía no tiene acceso configurado. Hay que definir el secreto <code>ADMIN_PASSWORD</code> en el Worker (o activar Cloudflare Access).</p>
+    )}
+  </div>
+</Admin>

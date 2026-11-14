@@ -1,0 +1,24 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import AdminMatchRow from '../../components/AdminMatchRow.astro';
+import { adminLists } from '../../lib/admin';
+const lists = await adminLists();
+const Section = (title: string, items: typeof lists.live, empty: string) => ({ title, items, empty });
+const sections = [
+  Section('En juego', lists.live, ''),
+  Section('Hoy', lists.today, 'No hay partidos hoy.'),
+  Section('Próximos', lists.upcoming, 'Sin partidos programados.'),
+  Section('Últimos resultados', lists.recent, 'Todavía no hay resultados.'),
+].filter((s) => s.items.length > 0 || s.empty);
+---
+<Admin title="Partidos">
+  {sections.map((s) => (
+    <>
+      <h2>{s.title}</h2>
+      <div class="card">
+        {s.items.length === 0 ? <p class="empty">{s.empty}</p> : s.items.map((m) => <AdminMatchRow m={m} />)}
+      </div>
+    </>
+  ))}
+  <p class="history" style="margin-top:1.5rem">Tocá un partido para cargar goles o el resultado final. Todo cambio se puede deshacer.</p>
+</Admin>
