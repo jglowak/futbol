@@ -116,7 +116,7 @@ export async function lastUndoableEntry(id: number): Promise<AuditEntry | null> 
 // --- Listados para el panel ---
 
 const ADMIN_MATCH_SELECT = `
-  SELECT m.id, m.round, m.group_name, m.kickoff_at, m.venue, m.status,
+  SELECT m.id, m.slug, m.round, m.group_name, m.kickoff_at, m.venue, m.status,
          m.home_goals, m.away_goals, m.home_pens, m.away_pens, m.minute,
          h.id AS home_id, h.name AS home_name, h.short_name AS home_short, h.slug AS home_slug, h.crest_url AS home_crest,
          a.id AS away_id, a.name AS away_name, a.short_name AS away_short, a.slug AS away_slug, a.crest_url AS away_crest,

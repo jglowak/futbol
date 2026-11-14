@@ -1,13 +1,19 @@
 ---
 import Base from '../../layouts/Base.astro';
 import MatchDetail from '../../components/MatchDetail.astro';
-import { getMatch } from '../../lib/db';
+import { getMatch, getMatchBySlug } from '../../lib/db';
 import { listPhotos, listPosts } from '../../lib/match-content';
 import { formatKickoff } from '../../lib/format';
 
-const id = Number(Astro.params.id);
-const m = Number.isInteger(id) ? await getMatch(id) : null;
+const param = Astro.params.slug ?? '';
+let m = await getMatchBySlug(param);
+if (!m && /^\d+$/.test(param)) {
+  // Enlace viejo por número: redirige a la URL con nombres si existe.
+  m = await getMatch(Number(param));
+  if (m?.slug) return Astro.redirect(`/partido/${m.slug}`, 301);
+}
 if (!m) return new Response('Partido no encontrado', { status: 404 });
+const id = m.id;
 const [posts, photos] = await Promise.all([listPosts(id), listPhotos(id)]);
 const title = `${m.home_name} ${m.status === 'scheduled' ? 'vs' : `${m.home_goals ?? 0}-${m.away_goals ?? 0}`} ${m.away_name}`;
 const refreshEvery = m.status === 'finished' ? 60000 : 15000;

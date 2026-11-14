@@ -1,0 +1,17 @@
+---
+import Admin from '../../../layouts/Admin.astro';
+import { listTournamentsAdmin } from '../../../lib/fixture-admin';
+const ts = await listTournamentsAdmin();
+const LABEL: Record<string, string> = { upcoming: 'Próximo', ongoing: 'En curso', finished: 'Terminado' };
+---
+<Admin title="Torneos" back="/admin">
+  <div class="card">
+    {ts.map((t) => (
+      <a class="row" href={`/admin/torneos/${t.id}`} style="grid-template-columns:1fr auto">
+        <div><strong>{t.name}</strong><br /><span class="small">{t.season_name} · {t.category} · {LABEL[t.status] ?? t.status}</span></div>
+        <div class="small">{t.finished}/{t.matches} jugados</div>
+      </a>
+    ))}
+  </div>
+  <p class="small" style="margin-top:1rem">La creación de torneos y clubes nuevos viene en la próxima etapa.</p>
+</Admin>

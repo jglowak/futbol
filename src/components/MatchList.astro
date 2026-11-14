@@ -8,7 +8,7 @@ const { matches, showTournament = false } = Astro.props;
 <div class="card">
   {matches.length === 0 && <p class="note">Sin partidos.</p>}
   {matches.map((m) => (
-    <a class="match" href={`/partido/${m.id}`}>
+    <a class="match" href={`/partido/${m.slug ?? m.id}`}>
       <div class="home"><span class="full">{m.home_name}</span><span class="short">{m.home_short ?? m.home_name}</span> <Crest src={m.home_crest} name={m.home_name} size={22} /></div>
       <div class="score">{scoreText(m)}</div>
       <div class="away"><Crest src={m.away_crest} name={m.away_name} size={22} /> <span class="full">{m.away_name}</span><span class="short">{m.away_short ?? m.away_name}</span></div>

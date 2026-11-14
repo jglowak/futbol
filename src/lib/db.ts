@@ -19,6 +19,7 @@ export interface TournamentRow {
 
 export interface MatchRow {
   id: number;
+  slug: string | null;
   round: string;
   group_name: string;
   kickoff_at: string | null;
@@ -51,7 +52,7 @@ export interface TableRow {
 }
 
 const MATCH_SELECT = `
-  SELECT m.id, m.round, m.group_name, m.kickoff_at, m.venue, m.status,
+  SELECT m.id, m.slug, m.round, m.group_name, m.kickoff_at, m.venue, m.status,
          m.home_goals, m.away_goals, m.home_pens, m.away_pens, m.minute,
          h.id AS home_id, h.name AS home_name, h.short_name AS home_short, h.slug AS home_slug, h.crest_url AS home_crest,
          a.id AS away_id, a.name AS away_name, a.short_name AS away_short, a.slug AS away_slug, a.crest_url AS away_crest,
@@ -102,6 +103,10 @@ export async function getStripMatches(): Promise<{ recent: MatchRow[]; upcoming:
 
 export async function getMatch(id: number): Promise<MatchRow | null> {
   return env.DB.prepare(`${MATCH_SELECT} WHERE m.id = ?`).bind(id).first<MatchRow>();
+}
+
+export async function getMatchBySlug(slug: string): Promise<MatchRow | null> {
+  return env.DB.prepare(`${MATCH_SELECT} WHERE m.slug = ?`).bind(slug).first<MatchRow>();
 }
 
 export async function getLiveMatches(): Promise<MatchRow[]> {

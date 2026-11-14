@@ -61,8 +61,18 @@ Acceso (en este orden):
 Sin ninguna de las dos, el panel queda cerrado. En local: `.dev.vars` con `ADMIN_PASSWORD=...`.
 Las páginas públicas se actualizan en ~20 s (caché de borde).
 
+## Fixture desde el panel
+
+`/admin/torneos` → torneo → fechas con enlace a **editar** cada partido (etapa, serie, fecha, clubes, día/hora en
+hora de Uruguay, cancha, borrar). Formulario de **nuevo partido** al pie. Una etapa sin partidos ofrece
+**generar fixture** (todos contra todos, una rueda o ida y vuelta, por serie). Las URLs públicas de los partidos
+usan nombres y fecha (`/partido/candil-vs-alianza-14-11-2026`); los enlaces numéricos redirigen.
+
+Para volver los resultados al estado importado de AnWP después de hacer pruebas:
+`npx wrangler d1 execute futbol-db --remote --file=scripts/reset-resultados.sql`.
+
 ## Próximos pasos
 
 - Panel: goleadores y tarjetas por partido (eventos), colaboradores con acceso a un solo partido.
-- Plantillas de torneo (Apertura/Clausura, copa eliminatoria) y motor de etapas condicionales.
+- Alta de torneos y clubes con plantillas (Apertura/Clausura, copa eliminatoria) y motor de etapas condicionales.
 - Alineaciones y goles desde la planilla (foto → IA → revisión).

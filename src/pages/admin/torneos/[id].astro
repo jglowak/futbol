@@ -1,0 +1,96 @@
+---
+import Admin from '../../../layouts/Admin.astro';
+import AdminMatchRow from '../../../components/AdminMatchRow.astro';
+import { env } from 'cloudflare:workers';
+import { tournamentWithStages } from '../../../lib/fixture-admin';
+import type { MatchRow } from '../../../lib/db';
+
+const id = Number(Astro.params.id);
+const data = Number.isInteger(id) ? await tournamentWithStages(id) : null;
+if (!data) return new Response('Torneo no encontrado', { status: 404 });
+const { tournament, stages, clubs } = data;
+
+const { results: matches } = await env.DB.prepare(
+  `SELECT m.id, m.slug, m.round, m.group_name, m.kickoff_at, m.venue, m.status, m.home_goals, m.away_goals, m.home_pens, m.away_pens, m.minute, m.stage_id,
+          h.id AS home_id, h.name AS home_name, h.short_name AS home_short, h.slug AS home_slug, h.crest_url AS home_crest,
+          a.id AS away_id, a.name AS away_name, a.short_name AS away_short, a.slug AS away_slug, a.crest_url AS away_crest,
+          t.name AS tournament_name, t.slug AS tournament_slug
+   FROM matches m JOIN clubs h ON h.id = m.home_club_id JOIN clubs a ON a.id = m.away_club_id
+   JOIN stages s ON s.id = m.stage_id JOIN tournaments t ON t.id = s.tournament_id
+   WHERE t.id = ? ORDER BY m.stage_id, CAST(REPLACE(m.round, 'Fecha ', '') AS INTEGER), m.round, m.kickoff_at, m.id`,
+).bind(id).all<MatchRow & { stage_id: number }>();
+
+const byStage = new Map<number, Map<string, (MatchRow & { stage_id: number })[]>>();
+for (const m of matches) {
+  const rounds = byStage.get(m.stage_id) ?? new Map();
+  rounds.set(m.round || 'Sin fecha', [...(rounds.get(m.round || 'Sin fecha') ?? []), m]);
+  byStage.set(m.stage_id, rounds);
+}
+const groupsOf = (stageId: number) => [...new Set(clubs.filter((c) => c.stage_id === stageId).map((c) => c.group_name))];
+const ok = Astro.url.searchParams.get('ok');
+const error = Astro.url.searchParams.get('error');
+const KIND: Record<string, string> = { league: 'Liga', groups: 'Series', knockout: 'Eliminatoria' };
+---
+<Admin title={tournament.name} back="/admin/torneos">
+  {ok && <div class="notice">{ok.startsWith('creado') ? 'Partido creado.' : ok === 'borrado' ? 'Partido borrado.' : ok.startsWith('fixture') ? `Fixture generado: ${ok.split('-')[1]} partidos.` : 'Listo.'}</div>}
+  {error && <div class="notice" style="background:#fde8e6;border-color:#f3b3ad">{error}</div>}
+
+  {stages.map((st) => {
+    const groups = groupsOf(st.id);
+    const rounds = byStage.get(st.id) ?? new Map();
+    const stageClubs = clubs.filter((c) => c.stage_id === st.id);
+    return (
+      <>
+        <h2>{st.name} · {KIND[st.kind] ?? st.kind} · {stageClubs.length} clubes</h2>
+        {groups.length > 1 && (
+          <p class="small">{groups.map((g) => `${g}: ${stageClubs.filter((c) => c.group_name === g).map((c) => c.short_name ?? c.name).join(', ')}`).join(' · ')}</p>
+        )}
+        {rounds.size === 0 ? (
+          <div class="card" style="padding:.9rem">
+            <p class="small" style="margin-top:0">Esta etapa no tiene partidos. Podés generarlos automáticamente (todos contra todos{groups.length > 1 ? ', por serie' : ''}) y después cargar día y hora de cada uno.</p>
+            <form method="post" action={`/api/admin/etapa/${st.id}`} class="status-grid">
+              <button class="ghost" name="legs" value="1" onclick="this.form.action.value='generate'">Generar una rueda</button>
+              <button class="ghost" name="legs" value="2">Generar ida y vuelta</button>
+              <input type="hidden" name="action" value="generate" />
+            </form>
+          </div>
+        ) : (
+          [...rounds.entries()].map(([round, list]) => (
+            <>
+              <h3 style="font-size:.9rem;margin:.9rem 0 .4rem">{round}</h3>
+              <div class="card">
+                {list.map((m) => (
+                  <div style="display:grid;grid-template-columns:1fr auto;align-items:center">
+                    <AdminMatchRow m={m} />
+                    <a href={`/admin/partido/${m.id}/editar`} class="small" style="padding:0 .9rem">editar</a>
+                  </div>
+                ))}
+              </div>
+            </>
+          ))
+        )}
+      </>
+    );
+  })}
+
+  <h2 id="nuevo">Nuevo partido</h2>
+  <form method="post" action={`/api/admin/torneo/${id}`} class="card edit-form">
+    <label>Etapa
+      <select name="stage_id" required>{stages.map((s) => <option value={s.id}>{s.name}</option>)}</select>
+    </label>
+    <label>Serie (si corresponde)
+      <input name="group_name" list="grupos" placeholder={groupsOf(stages[0]?.id ?? 0).filter(Boolean).join(' / ') || '—'} />
+      <datalist id="grupos">{[...new Set(clubs.map((c) => c.group_name).filter(Boolean))].map((g) => <option value={g} />)}</datalist>
+    </label>
+    <label>Fecha / instancia <input name="round" placeholder="Fecha 3, Semifinal, Final…" /></label>
+    <label>Local
+      <select name="home_club_id" required>{[...new Map(clubs.map((c) => [c.club_id, c])).values()].map((c) => <option value={c.club_id}>{c.name}</option>)}</select>
+    </label>
+    <label>Visitante
+      <select name="away_club_id" required>{[...new Map(clubs.map((c) => [c.club_id, c])).values()].map((c) => <option value={c.club_id}>{c.name}</option>)}</select>
+    </label>
+    <label>Día y hora (Uruguay) <input type="datetime-local" name="kickoff_local" /></label>
+    <label>Cancha <input name="venue" placeholder="Estadio…" /></label>
+    <button type="submit">Crear partido</button>
+  </form>
+</Admin>

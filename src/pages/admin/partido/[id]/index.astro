@@ -1,10 +1,10 @@
 ---
-import Admin from '../../../layouts/Admin.astro';
-import Crest from '../../../components/Crest.astro';
-import { adminMatch, lastUndoableEntry, matchHistory } from '../../../lib/admin';
-import { formatKickoff } from '../../../lib/format';
-import { listPhotos, listPosts, POST_KINDS } from '../../../lib/match-content';
-import { mediaBucket } from '../../../lib/media';
+import Admin from '../../../../layouts/Admin.astro';
+import Crest from '../../../../components/Crest.astro';
+import { adminMatch, lastUndoableEntry, matchHistory } from '../../../../lib/admin';
+import { formatKickoff } from '../../../../lib/format';
+import { listPhotos, listPosts, POST_KINDS } from '../../../../lib/match-content';
+import { mediaBucket } from '../../../../lib/media';
 
 const id = Number(Astro.params.id);
 const m = Number.isInteger(id) ? await adminMatch(id) : null;
@@ -35,6 +35,7 @@ const when = (iso: string) =>
 ---
 <Admin title={`${m.home_short ?? m.home_name} vs ${m.away_short ?? m.away_name}`} back="/admin">
   <p class="history" style="margin:0 0 .6rem">
+    <a href={`/admin/partido/${id}/editar`}>editar datos</a> · <a href={`/partido/${m.slug ?? id}`} target="_blank" rel="noopener">ver en el sitio ↗</a><br />
     {m.tournament_name}{m.group_name ? ` · ${m.group_name}` : ''}{m.round ? ` · ${m.round}` : ''} · {formatKickoff(m.kickoff_at)}
   </p>
 

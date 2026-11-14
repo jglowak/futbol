@@ -1,0 +1,40 @@
+---
+import Admin from '../../../../layouts/Admin.astro';
+import { env } from 'cloudflare:workers';
+import { adminMatch } from '../../../../lib/admin';
+import { tournamentWithStages, utcToLocalInput } from '../../../../lib/fixture-admin';
+
+const id = Number(Astro.params.id);
+const m = Number.isInteger(id) ? await adminMatch(id) : null;
+if (!m) return new Response('Partido no encontrado', { status: 404 });
+const row = await env.DB.prepare(`SELECT m.stage_id, s.tournament_id FROM matches m JOIN stages s ON s.id = m.stage_id WHERE m.id = ?`).bind(id).first<{ stage_id: number; tournament_id: number }>();
+const data = await tournamentWithStages(row!.tournament_id);
+const { stages, clubs } = data!;
+const allClubs = [...new Map(clubs.map((c) => [c.club_id, c])).values()];
+const ok = Astro.url.searchParams.get('ok');
+const error = Astro.url.searchParams.get('error');
+---
+<Admin title="Editar partido" back={`/admin/partido/${id}`}>
+  {ok && <div class="notice">Guardado.</div>}
+  {error && <div class="notice" style="background:#fde8e6;border-color:#f3b3ad">{error}</div>}
+  <form method="post" action={`/api/admin/partido/${id}/editar`} class="card edit-form">
+    <label>Etapa
+      <select name="stage_id">{stages.map((s) => <option value={s.id} selected={s.id === row!.stage_id}>{s.name}</option>)}</select>
+    </label>
+    <label>Serie <input name="group_name" value={m.group_name} /></label>
+    <label>Fecha / instancia <input name="round" value={m.round} /></label>
+    <label>Local
+      <select name="home_club_id">{allClubs.map((c) => <option value={c.club_id} selected={c.club_id === m.home_id}>{c.name}</option>)}</select>
+    </label>
+    <label>Visitante
+      <select name="away_club_id">{allClubs.map((c) => <option value={c.club_id} selected={c.club_id === m.away_id}>{c.name}</option>)}</select>
+    </label>
+    <label>Día y hora (Uruguay) <input type="datetime-local" name="kickoff_local" value={utcToLocalInput(m.kickoff_at)} /></label>
+    <label>Cancha <input name="venue" value={m.venue ?? ''} /></label>
+    <button type="submit">Guardar</button>
+  </form>
+  <p class="small" style="margin:.8rem 0">El resultado y el estado se cargan desde la <a href={`/admin/partido/${id}`}>pantalla del partido</a>.</p>
+  <form method="post" action={`/api/admin/partido/${id}/editar`} onsubmit="return confirm('¿Borrar este partido? Se pierde su resultado, relato y fotos.')">
+    <button class="danger" name="action" value="delete">Borrar partido</button>
+  </form>
+</Admin>

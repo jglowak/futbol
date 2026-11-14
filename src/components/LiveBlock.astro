@@ -8,7 +8,7 @@ const { matches } = Astro.props;
   <section class="live-block" id="en-vivo">
     <h2><span class="live-dot">●</span> En vivo</h2>
     {matches.map((m) => (
-      <a class="live-card" href={`/partido/${m.id}`}>
+      <a class="live-card" href={`/partido/${m.slug ?? m.id}`}>
         <Scoreboard m={m} links={false} />
         <div class="meta">{m.tournament_name}{m.group_name ? ` · ${m.group_name}` : ''}{m.round ? ` · ${m.round}` : ''} · ver partido ›</div>
       </a>
