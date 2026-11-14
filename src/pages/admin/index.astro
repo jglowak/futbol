@@ -2,7 +2,12 @@
 import Admin from '../../layouts/Admin.astro';
 import AdminMatchRow from '../../components/AdminMatchRow.astro';
 import { adminLists } from '../../lib/admin';
+import { env } from 'cloudflare:workers';
+import { mediaBucket } from '../../lib/media';
 const lists = await adminLists();
+const escudosMsg = Astro.url.searchParams.get('escudos');
+const pendingCrests = (await env.DB.prepare(`SELECT COUNT(*) AS n FROM clubs WHERE crest_url LIKE 'http%'`).first<{ n: number }>())?.n ?? 0;
+const hasR2 = Boolean(mediaBucket());
 const Section = (title: string, items: typeof lists.live, empty: string) => ({ title, items, empty });
 const sections = [
   Section('En juego', lists.live, ''),
@@ -21,4 +26,13 @@ const sections = [
     </>
   ))}
   <p class="history" style="margin-top:1.5rem">Tocá un partido para cargar goles o el resultado final. Todo cambio se puede deshacer.</p>
+
+  <h2>Herramientas</h2>
+  {escudosMsg && <div class="notice">{escudosMsg === 'sin-r2' ? 'R2 todavía no está conectado al Worker.' : `Escudos copiados: ${escudosMsg}`}</div>}
+  <div class="card" style="padding:.9rem">
+    <p style="margin:0 0 .6rem;font-size:.9rem">Escudos alojados fuera de Cloudflare: <strong>{pendingCrests}</strong>{!hasR2 && ' · R2 sin conectar'}</p>
+    <form method="post" action="/api/admin/escudos/sync">
+      <button class="ghost" disabled={!hasR2 || pendingCrests === 0}>Copiar escudos a R2</button>
+    </form>
+  </div>
 </Admin>

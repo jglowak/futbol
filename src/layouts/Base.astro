@@ -5,7 +5,7 @@ interface Props {
 }
 const { title, description = 'Resultados, tablas y fixture del fútbol del interior.' } = Astro.props;
 // Caché corta en el borde de Cloudflare: rápido, pero los resultados se ven casi al instante.
-Astro.response.headers.set('Cache-Control', 'public, max-age=10, s-maxage=20, stale-while-revalidate=60');
+Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=10, stale-while-revalidate=30');
 ---
 <!doctype html>
 <html lang="es">
@@ -51,5 +51,21 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=10, s-maxage=20, st
   <body>
     <header><div class="wrap"><a href="/">⚽ Fútbol Florida · prueba</a></div></header>
     <main><slot /></main>
+    <script>
+      // Actualiza el contenido cada 20 s sin recargar la página (solo si la pestaña está visible).
+      const refresh = async () => {
+        if (document.hidden) return;
+        try {
+          const res = await fetch(location.href, { cache: 'no-store', headers: { 'x-refresh': '1' } });
+          if (!res.ok) return;
+          const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+          const next = doc.querySelector('main');
+          const cur = document.querySelector('main');
+          if (next && cur && next.innerHTML !== cur.innerHTML) cur.innerHTML = next.innerHTML;
+        } catch {}
+      };
+      setInterval(refresh, 20000);
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+    </script>
   </body>
 </html>
