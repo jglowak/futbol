@@ -2,6 +2,8 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "futbol",
   "compatibility_date": "2026-11-01",
+  // Dirección pública futbol.<subdominio>.workers.dev (mientras es una prueba)
+  "workers_dev": true,
   "d1_databases": [
     {
       "binding": "DB",
