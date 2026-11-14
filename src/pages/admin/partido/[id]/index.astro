@@ -23,13 +23,15 @@ const hasScore = m.home_goals !== null && m.away_goals !== null;
 
 const LABEL: Record<string, string> = { scheduled: 'Programado', live: 'En vivo', finished: 'Final', postponed: 'Postergado' };
 const describe = (e: (typeof history)[number]) => {
-  const b = e.payload.before, a = e.payload.after;
+  const b = e.payload.before ?? {}, a = e.payload.after ?? {};
   const score = (s: typeof a) => (s.home_goals === null ? '—' : `${s.home_goals}-${s.away_goals}`);
   if (e.action === 'undo') return `Deshacer → ${score(a)} (${LABEL[a.status] ?? a.status})`;
   if (e.action === 'goal') return `Gol: ${score(b)} → ${score(a)}`;
   if (e.action === 'status') return `Estado: ${LABEL[b.status] ?? b.status} → ${LABEL[a.status] ?? a.status}`;
   if (e.action === 'minute') return `Minuto: ${b.minute ?? '—'} → ${a.minute ?? '—'}`;
   if (e.action === 'pens') return `Penales: ${a.home_pens ?? '—'}-${a.away_pens ?? '—'}`;
+  if (e.action === 'create') return 'Partido creado';
+  if (e.action === 'edit') return 'Datos del partido editados';
   return e.action;
 };
 const when = (iso: string) =>

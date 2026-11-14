@@ -114,7 +114,9 @@ export async function matchHistory(id: number, limit = 30): Promise<AuditEntry[]
   return results.map((r) => ({ ...r, payload: JSON.parse(r.payload) }));
 }
 
-/** Último cambio que todavía no fue deshecho. */
+const UNDOABLE = new Set(['goal', 'status', 'minute', 'pens']);
+
+/** Último cambio de marcador/estado que todavía no fue deshecho. */
 export async function lastUndoableEntry(id: number): Promise<AuditEntry | null> {
   const history = await matchHistory(id, 100);
   const undone = new Set<number>();
@@ -124,6 +126,8 @@ export async function lastUndoableEntry(id: number): Promise<AuditEntry | null> 
       undone.add(e.id); // un undo tampoco se "re-deshace" (eso sería rehacer)
       continue;
     }
+    // Las entradas de alta/edición/borrado del partido no se deshacen desde acá.
+    if (!UNDOABLE.has(e.action) || !e.payload?.before || !('status' in e.payload.before)) continue;
     if (!undone.has(e.id)) return e;
   }
   return null;
