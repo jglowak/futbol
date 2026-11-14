@@ -6,5 +6,6 @@ export default defineConfig({
   // Sin sesiones ni transformación de imágenes de Cloudflare: no se necesitan
   // (así el deploy no pide KV ni Images). Se pueden activar más adelante.
   session: false,
-  adapter: cloudflare({ imageService: 'passthrough' }),
+  // Todas las páginas son dinámicas (SSR): no hace falta workerd durante el build.
+  adapter: cloudflare({ imageService: 'passthrough', prerenderEnvironment: 'node' }),
 });
