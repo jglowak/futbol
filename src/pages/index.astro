@@ -1,0 +1,18 @@
+---
+import Base from '../layouts/Base.astro';
+import MatchList from '../components/MatchList.astro';
+import { getStripMatches, listTournaments } from '../lib/db';
+
+const [{ recent, upcoming }, tournaments] = await Promise.all([getStripMatches(), listTournaments()]);
+---
+<Base title="Fútbol — resultados y tablas">
+  <h1>Resultados y próximos partidos</h1>
+  <h2>Últimos resultados</h2>
+  <MatchList matches={recent} showTournament />
+  <h2>Próximos partidos</h2>
+  <MatchList matches={upcoming} showTournament />
+  <h2>Torneos</h2>
+  <ul class="links">
+    {tournaments.map((t) => <li><a href={`/torneo/${t.slug}`}>{t.name} · {t.season_name}</a></li>)}
+  </ul>
+</Base>

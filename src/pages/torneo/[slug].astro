@@ -1,0 +1,40 @@
+---
+import Base from '../../layouts/Base.astro';
+import MatchList from '../../components/MatchList.astro';
+import StandingsTable from '../../components/StandingsTable.astro';
+import { getComputedTable, getTablesForTournament, getTournament, getTournamentMatches } from '../../lib/db';
+
+const { slug } = Astro.params;
+const tournament = slug ? await getTournament(slug) : null;
+if (!tournament) return new Response('Torneo no encontrado', { status: 404 });
+
+const [matches, tables] = await Promise.all([
+  getTournamentMatches(tournament.id),
+  getTablesForTournament(tournament.id),
+]);
+const computed = (await Promise.all(tables.map((t) => getComputedTable(t.slug)))).filter((x) => x !== null);
+
+const rounds = new Map<string, typeof matches>();
+for (const m of matches) {
+  const key = m.round || 'Partidos';
+  rounds.set(key, [...(rounds.get(key) ?? []), m]);
+}
+---
+<Base title={`${tournament.name} — Fútbol`}>
+  <h1>{tournament.name} <small>· {tournament.category} · {tournament.season_name}</small></h1>
+
+  {computed.map(({ table, rows }) => (
+    <>
+      <h2>{table.name}</h2>
+      <StandingsTable rows={rows} />
+    </>
+  ))}
+
+  <h2>Fixture y resultados</h2>
+  {[...rounds.entries()].map(([round, list]) => (
+    <>
+      <h3>{round}</h3>
+      <MatchList matches={list} />
+    </>
+  ))}
+</Base>

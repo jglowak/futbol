@@ -1,0 +1,25 @@
+---
+import { formatKickoff, scoreText, STATUS_LABEL } from '../lib/format';
+import type { MatchRow } from '../lib/db';
+interface Props { matches: MatchRow[]; showTournament?: boolean }
+const { matches, showTournament = false } = Astro.props;
+---
+<div class="card">
+  {matches.length === 0 && <p class="note">Sin partidos.</p>}
+  {matches.map((m) => (
+    <div class="match">
+      <div class="home">{m.home_name}</div>
+      <div class="score">{scoreText(m)}</div>
+      <div class="away">{m.away_name}</div>
+      <div class="meta">
+        {m.status === 'live'
+          ? <span class="live">● En vivo{m.minute ? ` ${m.minute}'` : ''}</span>
+          : m.status === 'finished'
+            ? <span>{STATUS_LABEL[m.status]}</span>
+            : <span>{formatKickoff(m.kickoff_at)}</span>}
+        {m.venue && <span> · {m.venue}</span>}
+        {showTournament && <span> · <a href={`/torneo/${m.tournament_slug}`}>{m.tournament_name}</a></span>}
+      </div>
+    </div>
+  ))}
+</div>

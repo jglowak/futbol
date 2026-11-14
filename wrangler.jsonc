@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "futbol",
+  "compatibility_date": "2026-11-01",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "futbol-db",
+      // Reemplazar por el ID real: npx wrangler d1 create futbol-db
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "db/migrations"
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+---
+import type { StandingRow } from '../lib/standings';
+interface Props { rows: StandingRow[] }
+const { rows } = Astro.props;
+const notes = rows.filter((r) => r.adjustmentReasons.length > 0);
+---
+<div class="card">
+  <table>
+    <thead>
+      <tr><th>#</th><th>Club</th><th>PJ</th><th>G</th><th>E</th><th>P</th><th>GF</th><th>GC</th><th>DG</th><th>Pts</th></tr>
+    </thead>
+    <tbody>
+      {rows.map((r) => (
+        <tr>
+          <td>{r.position}</td>
+          <td>{r.name}{r.pointsAdjustment !== 0 && <sup> *</sup>}</td>
+          <td>{r.played}</td><td>{r.won}</td><td>{r.drawn}</td><td>{r.lost}</td>
+          <td>{r.goalsFor}</td><td>{r.goalsAgainst}</td>
+          <td>{r.goalDifference > 0 ? `+${r.goalDifference}` : r.goalDifference}</td>
+          <td class="pts">{r.points}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
+{notes.map((r) => (
+  <p class="note">* {r.name}: {r.adjustmentReasons.join('; ')} ({r.pointsAdjustment > 0 ? '+' : ''}{r.pointsAdjustment} pts)</p>
+))}

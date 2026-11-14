@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.astro/
+.wrangler/
+.dev.vars
+.env
+.env.*
+worker-configuration.d.ts
+*.log
+# Datos reales o sensibles: nunca al repo
+/data-privada/
+*.sqlite

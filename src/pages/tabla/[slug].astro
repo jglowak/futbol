@@ -1,0 +1,13 @@
+---
+import Base from '../../layouts/Base.astro';
+import StandingsTable from '../../components/StandingsTable.astro';
+import { getComputedTable } from '../../lib/db';
+
+const { slug } = Astro.params;
+const computed = slug ? await getComputedTable(slug) : null;
+if (!computed) return new Response('Tabla no encontrada', { status: 404 });
+---
+<Base title={`${computed.table.name} — Fútbol`}>
+  <h1>{computed.table.name}</h1>
+  <StandingsTable rows={computed.rows} />
+</Base>
