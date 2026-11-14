@@ -39,12 +39,17 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=10, s-maxage=20, st
       .match .meta { grid-column:1/-1; color:var(--muted); font-size:.8rem; text-align:center; }
       .live { color:var(--live); font-weight:700; }
       .note { color:var(--muted); font-size:.8rem; margin:.4rem .2rem; }
+      .crest { display:inline-block; vertical-align:middle; object-fit:contain; }
+      .crest-empty { border-radius:50%; background:var(--line); }
+      td.club { white-space:nowrap; }
+      .short { display:none; }
+      @media (max-width: 640px) { .full { display:none; } .short { display:inline; } th, td { padding:.45rem .4rem; } }
       ul.links { list-style:none; padding:0; display:flex; flex-wrap:wrap; gap:.5rem; }
       ul.links a { display:inline-block; padding:.4rem .8rem; background:var(--card); border:1px solid var(--line); border-radius:999px; text-decoration:none; }
     </style>
   </head>
   <body>
-    <header><div class="wrap"><a href="/">⚽ Fútbol — demo</a></div></header>
+    <header><div class="wrap"><a href="/">⚽ Fútbol Florida · prueba</a></div></header>
     <main><slot /></main>
   </body>
 </html>

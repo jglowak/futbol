@@ -1,6 +1,7 @@
 ---
 import { formatKickoff, scoreText, STATUS_LABEL } from '../lib/format';
 import type { MatchRow } from '../lib/db';
+import Crest from './Crest.astro';
 interface Props { matches: MatchRow[]; showTournament?: boolean }
 const { matches, showTournament = false } = Astro.props;
 ---
@@ -8,15 +9,16 @@ const { matches, showTournament = false } = Astro.props;
   {matches.length === 0 && <p class="note">Sin partidos.</p>}
   {matches.map((m) => (
     <div class="match">
-      <div class="home">{m.home_name}</div>
+      <div class="home"><span class="full">{m.home_name}</span><span class="short">{m.home_short ?? m.home_name}</span> <Crest src={m.home_crest} name={m.home_name} size={22} /></div>
       <div class="score">{scoreText(m)}</div>
-      <div class="away">{m.away_name}</div>
+      <div class="away"><Crest src={m.away_crest} name={m.away_name} size={22} /> <span class="full">{m.away_name}</span><span class="short">{m.away_short ?? m.away_name}</span></div>
       <div class="meta">
         {m.status === 'live'
           ? <span class="live">● En vivo{m.minute ? ` ${m.minute}'` : ''}</span>
           : m.status === 'finished'
             ? <span>{STATUS_LABEL[m.status]}</span>
             : <span>{formatKickoff(m.kickoff_at)}</span>}
+        {m.group_name && <span> · {m.group_name}</span>}
         {m.venue && <span> · {m.venue}</span>}
         {showTournament && <span> · <a href={`/torneo/${m.tournament_slug}`}>{m.tournament_name}</a></span>}
       </div>

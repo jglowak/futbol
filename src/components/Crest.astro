@@ -1,0 +1,7 @@
+---
+interface Props { src: string | null; name: string; size?: number }
+const { src, name, size = 20 } = Astro.props;
+---
+{src
+  ? <img class="crest" src={src} alt="" width={size} height={size} loading="lazy" decoding="async" />
+  : <span class="crest crest-empty" style={`width:${size}px;height:${size}px`} aria-hidden="true"></span>}

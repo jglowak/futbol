@@ -35,12 +35,18 @@ export interface AdjustmentInput {
 export interface ClubInput {
   id: number;
   name: string;
+  shortName?: string | null;
+  crestUrl?: string | null;
+  slug?: string;
 }
 
 export interface StandingRow {
   position: number;
   clubId: number;
   name: string;
+  shortName: string | null;
+  crestUrl: string | null;
+  slug: string | null;
   played: number;
   won: number;
   drawn: number;
@@ -72,6 +78,9 @@ export function computeStandings(
       position: 0,
       clubId: c.id,
       name: c.name,
+      shortName: c.shortName ?? null,
+      crestUrl: c.crestUrl ?? null,
+      slug: c.slug ?? null,
       played: 0,
       won: 0,
       drawn: 0,

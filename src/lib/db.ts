@@ -31,10 +31,14 @@ export interface MatchRow {
   minute: number | null;
   home_id: number;
   home_name: string;
+  home_short: string | null;
   home_slug: string;
+  home_crest: string | null;
   away_id: number;
   away_name: string;
+  away_short: string | null;
   away_slug: string;
+  away_crest: string | null;
   tournament_name: string;
   tournament_slug: string;
 }
@@ -49,8 +53,8 @@ export interface TableRow {
 const MATCH_SELECT = `
   SELECT m.id, m.round, m.group_name, m.kickoff_at, m.venue, m.status,
          m.home_goals, m.away_goals, m.home_pens, m.away_pens, m.minute,
-         h.id AS home_id, h.name AS home_name, h.slug AS home_slug,
-         a.id AS away_id, a.name AS away_name, a.slug AS away_slug,
+         h.id AS home_id, h.name AS home_name, h.short_name AS home_short, h.slug AS home_slug, h.crest_url AS home_crest,
+         a.id AS away_id, a.name AS away_name, a.short_name AS away_short, a.slug AS away_slug, a.crest_url AS away_crest,
          t.name AS tournament_name, t.slug AS tournament_slug
   FROM matches m
   JOIN clubs h ON h.id = m.home_club_id
@@ -124,11 +128,13 @@ export async function getComputedTable(slug: string): Promise<ComputedTable | nu
     .first<TableRow>();
   if (!table) return null;
 
+  // Una fuente con group_name = '' toma toda la etapa; con un valor, solo esa serie.
   const [clubsRes, matchesRes, adjRes] = await Promise.all([
     env.DB.prepare(
-      `SELECT DISTINCT c.id, c.name
+      `SELECT DISTINCT c.id, c.name, c.short_name AS shortName, c.crest_url AS crestUrl, c.slug
        FROM stage_clubs sc
-       JOIN standing_table_sources src ON src.stage_id = sc.stage_id
+       JOIN standing_table_sources src
+         ON src.stage_id = sc.stage_id AND (src.group_name = '' OR src.group_name = sc.group_name)
        JOIN clubs c ON c.id = sc.club_id
        WHERE src.table_id = ?`,
     )
@@ -138,7 +144,8 @@ export async function getComputedTable(slug: string): Promise<ComputedTable | nu
       `SELECT m.home_club_id AS homeClubId, m.away_club_id AS awayClubId,
               m.home_goals AS homeGoals, m.away_goals AS awayGoals, m.status
        FROM matches m
-       JOIN standing_table_sources src ON src.stage_id = m.stage_id
+       JOIN standing_table_sources src
+         ON src.stage_id = m.stage_id AND (src.group_name = '' OR src.group_name = m.group_name)
        WHERE src.table_id = ?`,
     )
       .bind(table.id)

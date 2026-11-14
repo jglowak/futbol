@@ -2,13 +2,15 @@
 
 Sistema de resultados, tablas y fixture para el fútbol del interior (Astro + Cloudflare Workers + D1).
 
-> Estado: **paso 1** — esquema de datos, cálculo de tablas y páginas públicas con datos de ejemplo.
-> Los clubes y resultados del seed son **ficticios**.
+> Estado: esquema de datos, cálculo de tablas y páginas públicas con los **datos reales de la temporada 2026**
+> de la Liga de Fútbol de Florida (Apertura completo + Clausura en curso), importados desde AnWP.
 
 ## Estructura
 
 - `db/migrations/` — esquema de la base (D1).
-- `db/seed.sql` — datos de ejemplo (Apertura, Clausura y Tabla Anual de demo).
+- `db/seed-2026.sql` — temporada 2026 generada por `scripts/import-anwp.mjs` desde los exports de AnWP (`data/anwp/`).
+  Regenerar: `node scripts/import-anwp.mjs --clubs <clubes.xml> --apertura data/anwp/apertura-2026-games.csv --clausura data/anwp/clausura-2026-games.csv > db/seed-2026.sql`
+  (el XML de clubes no está en el repo).
 - `src/lib/standings.ts` — cálculo de tablas (módulo puro, con tests).
 - `src/lib/db.ts` — consultas a D1.
 - `src/pages/` — portada, `/torneo/[slug]`, `/tabla/[slug]`.
@@ -36,7 +38,7 @@ npm test                      # tests del cálculo de tablas
 
 1. ~~Crear la base~~ — hecho: `futbol-db` ya existe y su `database_id` está en `wrangler.jsonc`.
 2. ~~Aplicar el esquema~~ — hecho (migración `0001_init.sql` registrada como aplicada). Las próximas: `npm run db:migrate:remote`.
-3. ~~Datos de ejemplo~~ — cargados en la base remota (solo demo).
+3. ~~Datos~~ — la temporada 2026 ya está cargada en la base remota.
 4. Conectar el repo al proyecto `futbol` en Cloudflare:
    - Build command: `npm run build`
    - Deploy command: `npx wrangler deploy`

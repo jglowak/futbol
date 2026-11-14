@@ -10,7 +10,8 @@
     "test": "vitest run",
     "db:migrate:local": "wrangler d1 migrations apply futbol-db --local",
     "db:migrate:remote": "wrangler d1 migrations apply futbol-db --remote",
-    "db:seed:local": "wrangler d1 execute futbol-db --local --file=./db/seed.sql"
+    "db:seed:local": "wrangler d1 execute futbol-db --local --file=./db/seed-2026.sql",
+    "import:anwp": "node scripts/import-anwp.mjs"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^14.4.8",
