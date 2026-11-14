@@ -1,0 +1,17 @@
+---
+import type { MatchRow } from '../lib/db';
+import Scoreboard from './Scoreboard.astro';
+interface Props { matches: MatchRow[] }
+const { matches } = Astro.props;
+---
+{matches.length > 0 && (
+  <section class="live-block">
+    <h2><span class="live-dot">●</span> En vivo</h2>
+    {matches.map((m) => (
+      <a class="live-card" href={`/partido/${m.id}`}>
+        <Scoreboard m={m} />
+        <div class="meta">{m.tournament_name}{m.group_name ? ` · ${m.group_name}` : ''}{m.round ? ` · ${m.round}` : ''} · ver partido ›</div>
+      </a>
+    ))}
+  </section>
+)}

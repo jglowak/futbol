@@ -1,11 +1,13 @@
 ---
 import Base from '../layouts/Base.astro';
 import MatchList from '../components/MatchList.astro';
-import { getStripMatches, listTournaments } from '../lib/db';
+import LiveBlock from '../components/LiveBlock.astro';
+import { getLiveMatches, getStripMatches, listTournaments } from '../lib/db';
 
-const [{ recent, upcoming }, tournaments] = await Promise.all([getStripMatches(), listTournaments()]);
+const [{ recent, upcoming }, tournaments, live] = await Promise.all([getStripMatches(), listTournaments(), getLiveMatches()]);
 ---
 <Base title="Fútbol — resultados y tablas">
+  <div data-refresh="/partial/en-vivo" data-refresh-every="15000"><LiveBlock matches={live} /></div>
   <h1>Resultados y próximos partidos</h1>
   <h2>Últimos resultados</h2>
   <MatchList matches={recent} showTournament />

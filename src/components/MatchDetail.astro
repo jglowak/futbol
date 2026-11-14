@@ -1,0 +1,18 @@
+---
+// Contenido refrescable de la página de un partido (se usa entero y como "partial").
+import type { MatchRow } from '../lib/db';
+import type { MatchPhoto, MatchPost } from '../lib/match-content';
+import Scoreboard from './Scoreboard.astro';
+import MatchPosts from './MatchPosts.astro';
+import MatchPhotos from './MatchPhotos.astro';
+interface Props { m: MatchRow; posts: MatchPost[]; photos: MatchPhoto[] }
+const { m, posts, photos } = Astro.props;
+---
+<section id="marcador" class="card pad"><Scoreboard m={m} big /></section>
+<section id="fotos">
+  <MatchPhotos photos={photos} />
+</section>
+<section id="relato">
+  <h2>Relato</h2>
+  <div class="card pad"><MatchPosts posts={posts} /></div>
+</section>

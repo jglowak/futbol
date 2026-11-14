@@ -3,12 +3,17 @@ import Admin from '../../../layouts/Admin.astro';
 import Crest from '../../../components/Crest.astro';
 import { adminMatch, lastUndoableEntry, matchHistory } from '../../../lib/admin';
 import { formatKickoff } from '../../../lib/format';
+import { listPhotos, listPosts, POST_KINDS } from '../../../lib/match-content';
+import { mediaBucket } from '../../../lib/media';
 
 const id = Number(Astro.params.id);
 const m = Number.isInteger(id) ? await adminMatch(id) : null;
 if (!m) return new Response('Partido no encontrado', { status: 404 });
 
-const [history, undoable] = await Promise.all([matchHistory(id, 15), lastUndoableEntry(id)]);
+const [history, undoable, posts, photos] = await Promise.all([matchHistory(id, 15), lastUndoableEntry(id), listPosts(id), listPhotos(id)]);
+const fotoMsg = Astro.url.searchParams.get('foto');
+const hasR2 = Boolean(mediaBucket());
+const back = `/admin/partido/${id}`;
 const api = `/api/admin/partido/${id}`;
 const isLive = m.status === 'live';
 const isFinal = m.status === 'finished';
@@ -76,6 +81,62 @@ const when = (iso: string) =>
     </>
   )}
 
+  <h2 id="relato">Relato</h2>
+  <div class="card" style="padding:.9rem">
+    <form method="post" action={`${api}/relato`} class="relato-form">
+      <div class="relato-row">
+        <input type="number" name="minute" min="0" max="130" inputmode="numeric" placeholder={isLive && m.minute ? `${m.minute}'` : "min'"} aria-label="Minuto" />
+        <select name="kind" aria-label="Tipo">
+          {Object.entries(POST_KINDS).map(([k, label]) => <option value={k}>{label}</option>)}
+        </select>
+      </div>
+      {isLive && m.minute && <label class="small"><input type="checkbox" name="use_current_minute" value="1" checked /> usar el minuto actual si no escribo uno</label>}
+      <textarea name="body" rows="3" maxlength="2000" required placeholder="Qué pasó… (gol de Fulano de cabeza, cambio, expulsión, o un comentario)"></textarea>
+      <button type="submit" style="min-height:48px">Publicar</button>
+    </form>
+    {posts.length > 0 && (
+      <ul class="admin-posts">
+        {posts.map((p) => (
+          <li>
+            <span class="min">{p.minute !== null ? `${p.minute}'` : '—'}</span>
+            <span class="body"><small>{POST_KINDS[p.kind]}</small> {p.body}</span>
+            <form method="post" action={`/api/admin/relato/${p.id}`}>
+              <input type="hidden" name="back" value={`${back}#relato`} />
+              <button class="ghost tiny" name="action" value="delete" aria-label="Borrar">✕</button>
+            </form>
+          </li>
+        ))}
+      </ul>
+    )}
+  </div>
+
+  <h2 id="fotos">Fotos</h2>
+  {fotoMsg && <div class="notice">{fotoMsg === 'ok' ? 'Foto subida.' : fotoMsg === 'vacia' ? 'Elegí una foto.' : `No se pudo subir: ${fotoMsg}`}</div>}
+  <div class="card" style="padding:.9rem">
+    {hasR2 ? (
+      <form method="post" action={`${api}/foto`} enctype="multipart/form-data" id="foto-form">
+        <input type="file" name="photo" accept="image/*" required />
+        <input type="hidden" name="width" /><input type="hidden" name="height" />
+        <input type="text" name="caption" maxlength="300" placeholder="Epígrafe (opcional)" style="margin:.5rem 0;width:100%;padding:.6rem;border:1px solid var(--line);border-radius:10px;font:inherit" />
+        <button type="submit" style="min-height:48px">Subir foto</button>
+        <p class="small">La foto se achica en el teléfono antes de subir (máx. 1600 px).</p>
+      </form>
+    ) : <p class="small">R2 no está conectado: la carga de fotos se habilita cuando lo esté.</p>}
+    {photos.length > 0 && (
+      <div class="admin-photos">
+        {photos.map((p) => (
+          <figure>
+            <img src={`/media/${p.key}`} alt={p.caption ?? ''} loading="lazy" />
+            <form method="post" action={`/api/admin/foto/${p.id}`} onsubmit="return confirm('¿Borrar esta foto?')">
+              <input type="hidden" name="back" value={`${back}#fotos`} />
+              <button class="danger tiny" name="action" value="delete">Borrar</button>
+            </form>
+          </figure>
+        ))}
+      </div>
+    )}
+  </div>
+
   <h2>Historial</h2>
   <form method="post" action={api}>
     <button class="ghost" name="action" value="undo" disabled={!undoable}>↶ Deshacer último cambio</button>
@@ -85,4 +146,37 @@ const when = (iso: string) =>
       {history.map((e) => <li>{when(e.at)} · {describe(e)} <span style="opacity:.7">({e.actor})</span></li>)}
     </ul>
   )}
+  <script>
+    // Reduce la foto en el navegador antes de subirla: ahorra datos y espacio en R2.
+    const form = document.getElementById('foto-form') as HTMLFormElement | null;
+    form?.addEventListener('submit', async (ev) => {
+      const input = form.querySelector<HTMLInputElement>('input[name=photo]')!;
+      const file = input.files?.[0];
+      if (!file || form.dataset.ready === '1') return;
+      ev.preventDefault();
+      const btn = form.querySelector('button')!;
+      btn.disabled = true;
+      btn.textContent = 'Preparando…';
+      try {
+        const bmp = await createImageBitmap(file);
+        const MAX = 1600;
+        const scale = Math.min(1, MAX / Math.max(bmp.width, bmp.height));
+        const w = Math.round(bmp.width * scale), h = Math.round(bmp.height * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d')!.drawImage(bmp, 0, 0, w, h);
+        const blob: Blob = await new Promise((res) => canvas.toBlob((b) => res(b!), 'image/jpeg', 0.82));
+        const dt = new DataTransfer();
+        dt.items.add(new File([blob], (file.name.replace(/\.[^.]+$/, '') || 'foto') + '.jpg', { type: 'image/jpeg' }));
+        input.files = dt.files;
+        (form.querySelector('input[name=width]') as HTMLInputElement).value = String(w);
+        (form.querySelector('input[name=height]') as HTMLInputElement).value = String(h);
+      } catch {
+        // Si el navegador no puede procesarla, se sube tal cual (el servidor limita a 4 MB).
+      }
+      form.dataset.ready = '1';
+      btn.textContent = 'Subiendo…';
+      form.submit();
+    });
+  </script>
 </Admin>

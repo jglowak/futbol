@@ -1,0 +1,28 @@
+---
+import type { MatchRow } from '../lib/db';
+import { formatKickoff, STATUS_LABEL } from '../lib/format';
+import Crest from './Crest.astro';
+interface Props { m: MatchRow; big?: boolean }
+const { m, big = false } = Astro.props;
+const isLive = m.status === 'live';
+const showScore = isLive || m.status === 'finished';
+---
+<div class:list={['scoreboard', { big, live: isLive }]}>
+  <a class="team" href={`/club/${m.home_slug}`}>
+    <Crest src={m.home_crest} name={m.home_name} size={big ? 56 : 32} />
+    <span class="full">{m.home_name}</span><span class="short">{m.home_short ?? m.home_name}</span>
+  </a>
+  <div class="center">
+    <div class="num">{showScore ? `${m.home_goals ?? 0} - ${m.away_goals ?? 0}` : 'vs'}</div>
+    <div class="state">
+      {isLive ? <span class="live-dot">● En vivo{m.minute ? ` · ${m.minute}'` : ''}</span>
+        : m.status === 'finished' ? 'Final'
+        : m.status === 'scheduled' ? formatKickoff(m.kickoff_at)
+        : STATUS_LABEL[m.status]}
+    </div>
+  </div>
+  <a class="team" href={`/club/${m.away_slug}`}>
+    <Crest src={m.away_crest} name={m.away_name} size={big ? 56 : 32} />
+    <span class="full">{m.away_name}</span><span class="short">{m.away_short ?? m.away_name}</span>
+  </a>
+</div>

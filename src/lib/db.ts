@@ -100,6 +100,15 @@ export async function getStripMatches(): Promise<{ recent: MatchRow[]; upcoming:
   return { recent: recent.results, upcoming: upcoming.results };
 }
 
+export async function getMatch(id: number): Promise<MatchRow | null> {
+  return env.DB.prepare(`${MATCH_SELECT} WHERE m.id = ?`).bind(id).first<MatchRow>();
+}
+
+export async function getLiveMatches(): Promise<MatchRow[]> {
+  const { results } = await env.DB.prepare(`${MATCH_SELECT} WHERE m.status = 'live' ORDER BY m.kickoff_at`).all<MatchRow>();
+  return results;
+}
+
 export async function getTablesForTournament(tournamentId: number): Promise<TableRow[]> {
   const { results } = await env.DB.prepare(
     `SELECT DISTINCT st.id, st.slug, st.name, st.config

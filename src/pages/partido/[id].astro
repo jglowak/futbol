@@ -1,0 +1,20 @@
+---
+import Base from '../../layouts/Base.astro';
+import MatchDetail from '../../components/MatchDetail.astro';
+import { getMatch } from '../../lib/db';
+import { listPhotos, listPosts } from '../../lib/match-content';
+import { formatKickoff } from '../../lib/format';
+
+const id = Number(Astro.params.id);
+const m = Number.isInteger(id) ? await getMatch(id) : null;
+if (!m) return new Response('Partido no encontrado', { status: 404 });
+const [posts, photos] = await Promise.all([listPosts(id), listPhotos(id)]);
+const title = `${m.home_name} ${m.status === 'scheduled' ? 'vs' : `${m.home_goals ?? 0}-${m.away_goals ?? 0}`} ${m.away_name}`;
+const refreshEvery = m.status === 'finished' ? 60000 : 15000;
+---
+<Base title={`${title} · ${m.tournament_name}`} description={`${m.tournament_name}${m.round ? ` · ${m.round}` : ''} · ${formatKickoff(m.kickoff_at)}`}>
+  <p class="note" style="margin:0 0 .5rem"><a href={`/torneo/${m.tournament_slug}`}>{m.tournament_name}</a>{m.group_name ? ` · ${m.group_name}` : ''}{m.round ? ` · ${m.round}` : ''} · {formatKickoff(m.kickoff_at)}{m.venue ? ` · ${m.venue}` : ''}</p>
+  <div data-refresh={`/partial/partido/${id}`} data-refresh-every={refreshEvery}>
+    <MatchDetail m={m} posts={posts} photos={photos} />
+  </div>
+</Base>

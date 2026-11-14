@@ -1,0 +1,20 @@
+---
+import type { MatchPost } from '../lib/match-content';
+import { POST_KINDS } from '../lib/match-content';
+interface Props { posts: MatchPost[] }
+const { posts } = Astro.props;
+const ICON: Record<string, string> = { goal: '⚽', card: '🟨', sub: '🔁', start: '▶️', end: '⏹️', info: 'ℹ️', text: '' };
+---
+{posts.length === 0
+  ? <p class="note">Todavía no hay relato de este partido.</p>
+  : <ol class="posts">
+      {posts.map((p) => (
+        <li class:list={['post', `kind-${p.kind}`]}>
+          <span class="min">{p.minute !== null ? `${p.minute}'` : ''}</span>
+          <div class="body">
+            {p.kind !== 'text' && <span class="tag">{ICON[p.kind]} {POST_KINDS[p.kind]}</span>}
+            {p.body.split('\n').map((line) => <p>{line}</p>)}
+          </div>
+        </li>
+      ))}
+    </ol>}

@@ -1,0 +1,7 @@
+---
+export const partial = true;
+import LiveBlock from '../../components/LiveBlock.astro';
+import { getLiveMatches } from '../../lib/db';
+Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=5, stale-while-revalidate=20');
+---
+<LiveBlock matches={await getLiveMatches()} />

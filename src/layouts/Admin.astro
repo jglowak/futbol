@@ -51,6 +51,17 @@ const user = Astro.locals.session?.user;
       .history li { padding:.35rem 0; border-top:1px solid var(--line); }
       form.inline { display:contents; }
       .notice { background:#fff7e0; border:1px solid #f1dc9a; border-radius:10px; padding:.7rem .9rem; font-size:.88rem; margin-bottom:.8rem; }
+      .relato-form textarea { width:100%; font:inherit; padding:.6rem; border:1px solid var(--line); border-radius:10px; margin:.5rem 0; }
+      .relato-row { display:flex; gap:.5rem; }
+      .relato-row input, .relato-row select { font:inherit; font-size:1rem; padding:.55rem; border:1px solid var(--line); border-radius:10px; }
+      .relato-row input { width:5.5rem; text-align:center; } .relato-row select { flex:1; }
+      .small { font-size:.8rem; color:var(--muted); }
+      .admin-posts { list-style:none; padding:0; margin:.8rem 0 0; font-size:.9rem; }
+      .admin-posts li { display:grid; grid-template-columns:2.4rem 1fr auto; gap:.4rem; align-items:start; padding:.45rem 0; border-top:1px solid var(--line); }
+      .admin-posts .min { font-weight:800; color:var(--accent); } .admin-posts small { color:var(--muted); text-transform:uppercase; font-size:.68rem; }
+      button.tiny { min-height:34px; width:auto; padding:0 .7rem; font-size:.85rem; }
+      .admin-photos { display:grid; grid-template-columns:repeat(auto-fill, minmax(120px,1fr)); gap:.5rem; margin-top:.8rem; }
+      .admin-photos figure { margin:0; } .admin-photos img { width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:8px; display:block; margin-bottom:.3rem; }
       .login { max-width:360px; margin:3rem auto; }
       .login input { font:inherit; font-size:1.1rem; width:100%; padding:.8rem; border:1px solid var(--line); border-radius:10px; margin:.5rem 0 1rem; }
       .err { color:var(--live); font-size:.9rem; }
