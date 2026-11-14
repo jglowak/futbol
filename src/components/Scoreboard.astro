@@ -2,16 +2,18 @@
 import type { MatchRow } from '../lib/db';
 import { formatKickoff, STATUS_LABEL } from '../lib/format';
 import Crest from './Crest.astro';
-interface Props { m: MatchRow; big?: boolean }
-const { m, big = false } = Astro.props;
+interface Props { m: MatchRow; big?: boolean; links?: boolean }
+const { m, big = false, links = true } = Astro.props;
+// Sin links cuando el marcador va dentro de otro enlace (un <a> dentro de otro es inválido).
+const Team = links ? 'a' : 'div';
 const isLive = m.status === 'live';
 const showScore = isLive || m.status === 'finished';
 ---
-<div class:list={['scoreboard', { big, live: isLive }]}>
-  <a class="team" href={`/club/${m.home_slug}`}>
+<div class:list={['scoreboard', { big, 'is-live': isLive }]}>
+  <Team class="team" href={links ? `/club/${m.home_slug}` : undefined}>
     <Crest src={m.home_crest} name={m.home_name} size={big ? 56 : 32} />
     <span class="full">{m.home_name}</span><span class="short">{m.home_short ?? m.home_name}</span>
-  </a>
+  </Team>
   <div class="center">
     <div class="num">{showScore ? `${m.home_goals ?? 0} - ${m.away_goals ?? 0}` : 'vs'}</div>
     <div class="state">
@@ -21,8 +23,8 @@ const showScore = isLive || m.status === 'finished';
         : STATUS_LABEL[m.status]}
     </div>
   </div>
-  <a class="team" href={`/club/${m.away_slug}`}>
+  <Team class="team" href={links ? `/club/${m.away_slug}` : undefined}>
     <Crest src={m.away_crest} name={m.away_name} size={big ? 56 : 32} />
     <span class="full">{m.away_name}</span><span class="short">{m.away_short ?? m.away_name}</span>
-  </a>
+  </Team>
 </div>

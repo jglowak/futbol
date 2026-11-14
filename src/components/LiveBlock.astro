@@ -5,11 +5,11 @@ interface Props { matches: MatchRow[] }
 const { matches } = Astro.props;
 ---
 {matches.length > 0 && (
-  <section class="live-block">
+  <section class="live-block" id="en-vivo">
     <h2><span class="live-dot">●</span> En vivo</h2>
     {matches.map((m) => (
       <a class="live-card" href={`/partido/${m.id}`}>
-        <Scoreboard m={m} />
+        <Scoreboard m={m} links={false} />
         <div class="meta">{m.tournament_name}{m.group_name ? ` · ${m.group_name}` : ''}{m.round ? ` · ${m.round}` : ''} · ver partido ›</div>
       </a>
     ))}
