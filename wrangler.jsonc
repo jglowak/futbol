@@ -6,8 +6,7 @@
     {
       "binding": "DB",
       "database_name": "futbol-db",
-      // Reemplazar por el ID real: npx wrangler d1 create futbol-db
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "cf40743c-3b2e-4e74-934b-d6f881b2d845",
       "migrations_dir": "db/migrations"
     }
   ]

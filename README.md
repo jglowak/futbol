@@ -34,9 +34,9 @@ npm test                      # tests del cálculo de tablas
 
 ## Deploy en Cloudflare (primera vez)
 
-1. Crear la base: `npx wrangler d1 create futbol-db` y pegar el `database_id` en `wrangler.jsonc`.
-2. Aplicar el esquema: `npm run db:migrate:remote`.
-3. (Solo para la demo) cargar ejemplo: `npx wrangler d1 execute futbol-db --remote --file=./db/seed.sql`.
+1. ~~Crear la base~~ — hecho: `futbol-db` ya existe y su `database_id` está en `wrangler.jsonc`.
+2. ~~Aplicar el esquema~~ — hecho (migración `0001_init.sql` registrada como aplicada). Las próximas: `npm run db:migrate:remote`.
+3. ~~Datos de ejemplo~~ — cargados en la base remota (solo demo).
 4. Conectar el repo al proyecto `futbol` en Cloudflare:
    - Build command: `npm run build`
    - Deploy command: `npx wrangler deploy`
