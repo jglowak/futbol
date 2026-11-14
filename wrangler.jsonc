@@ -4,8 +4,7 @@
   "compatibility_date": "2026-11-01",
   // Dirección pública futbol.<subdominio>.workers.dev (mientras es una prueba)
   "workers_dev": true,
-  // Al activar R2 y crear el bucket "futbol-media", descomentar:
-  // "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "futbol-media" }],
+  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "futbol-media" }],
   "d1_databases": [
     {
       "binding": "DB",
