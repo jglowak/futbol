@@ -15,7 +15,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=10, s-maxage=20, st
     <title>{title}</title>
     <meta name="description" content={description} />
     <meta name="robots" content="noindex" /> <!-- Quitar al pasar a producción -->
-    <style>
+    <style is:global>
       :root { --bg:#f6f7f9; --card:#fff; --ink:#14181f; --muted:#5b6575; --line:#e3e6eb; --accent:#0a6b3d; --live:#d6291f; }
       * { box-sizing: border-box; }
       body { margin:0; font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--ink); }
