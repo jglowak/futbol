@@ -1,6 +1,6 @@
 ---
 import type { MatchRow } from '../lib/db';
-import { formatKickoff, STATUS_LABEL } from '../lib/format';
+import { finishedLabel, formatKickoff, pensText, STATUS_LABEL } from '../lib/format';
 import Crest from './Crest.astro';
 interface Props { m: MatchRow; big?: boolean; links?: boolean }
 const { m, big = false, links = true } = Astro.props;
@@ -16,9 +16,10 @@ const showScore = isLive || m.status === 'finished';
   </Team>
   <div class="center">
     <div class="num">{showScore ? `${m.home_goals ?? 0} - ${m.away_goals ?? 0}` : 'vs'}</div>
+    {pensText(m) && <div class="pens">{pensText(m)}</div>}
     <div class="state">
       {isLive ? <span class="live-dot">● En vivo{m.minute ? ` · ${m.minute}'` : ''}</span>
-        : m.status === 'finished' ? 'Final'
+        : m.status === 'finished' ? <span class="badge-final">{finishedLabel(m.finished_at)}</span>
         : m.status === 'scheduled' ? formatKickoff(m.kickoff_at)
         : STATUS_LABEL[m.status]}
     </div>

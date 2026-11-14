@@ -23,6 +23,12 @@ function parseAction(form: FormData): Action | null {
       const n = Number(raw);
       return Number.isInteger(n) && n >= 0 && n <= 130 ? { type: 'minute', minute: n } : null;
     }
+    case 'pens': {
+      const n = (k: string) => { const raw = String(form.get(k) ?? '').trim(); if (raw === '') return null; const v = Number(raw); return Number.isInteger(v) && v >= 0 && v <= 30 ? v : NaN; };
+      const home = n('home_pens'), away = n('away_pens');
+      if (Number.isNaN(home) || Number.isNaN(away)) return null;
+      return { type: 'pens', home, away };
+    }
     case 'undo':
       return { type: 'undo' };
     default:

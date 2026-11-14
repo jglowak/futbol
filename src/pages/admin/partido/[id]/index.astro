@@ -2,7 +2,7 @@
 import Admin from '../../../../layouts/Admin.astro';
 import Crest from '../../../../components/Crest.astro';
 import { adminMatch, lastUndoableEntry, matchHistory } from '../../../../lib/admin';
-import { formatKickoff } from '../../../../lib/format';
+import { finishedLabel, formatKickoff, pensText } from '../../../../lib/format';
 import { listPhotos, listPosts, POST_KINDS } from '../../../../lib/match-content';
 import { mediaBucket } from '../../../../lib/media';
 
@@ -19,6 +19,7 @@ const isLive = m.status === 'live';
 const isFinal = m.status === 'finished';
 const hg = m.home_goals ?? 0;
 const ag = m.away_goals ?? 0;
+const hasScore = m.home_goals !== null && m.away_goals !== null;
 
 const LABEL: Record<string, string> = { scheduled: 'Programado', live: 'En vivo', finished: 'Final', postponed: 'Postergado' };
 const describe = (e: (typeof history)[number]) => {
@@ -28,6 +29,7 @@ const describe = (e: (typeof history)[number]) => {
   if (e.action === 'goal') return `Gol: ${score(b)} → ${score(a)}`;
   if (e.action === 'status') return `Estado: ${LABEL[b.status] ?? b.status} → ${LABEL[a.status] ?? a.status}`;
   if (e.action === 'minute') return `Minuto: ${b.minute ?? '—'} → ${a.minute ?? '—'}`;
+  if (e.action === 'pens') return `Penales: ${a.home_pens ?? '—'}-${a.away_pens ?? '—'}`;
   return e.action;
 };
 const when = (iso: string) =>
@@ -39,6 +41,7 @@ const when = (iso: string) =>
     {m.tournament_name}{m.group_name ? ` · ${m.group_name}` : ''}{m.round ? ` · ${m.round}` : ''} · {formatKickoff(m.kickoff_at)}
   </p>
 
+  {isFinal && <div class="final-banner">✔ {finishedLabel(m.finished_at)}</div>}
   <div class="card">
     <div class="board">
       <div>
@@ -47,7 +50,8 @@ const when = (iso: string) =>
         <div class="big">{m.home_goals ?? '–'}</div>
       </div>
       <div class="vs">
-        {isLive ? <span class="live">● {m.minute ? `${m.minute}'` : 'vivo'}</span> : isFinal ? 'Final' : LABEL[m.status] ?? m.status}
+        {isLive ? <span class="live">● {m.minute ? `${m.minute}'` : 'vivo'}</span> : isFinal ? <span class="badge-final">Finalizado</span> : LABEL[m.status] ?? m.status}
+        {pensText(m) && <div class="pens">{pensText(m)}</div>}
       </div>
       <div>
         <Crest src={m.away_crest} name={m.away_name} size={44} />
@@ -66,10 +70,10 @@ const when = (iso: string) =>
 
   <h2>Estado</h2>
   <div class="status-grid">
-    <form method="post" action={api}><button class:list={['ghost', { current: m.status === 'scheduled' }]} name="action" value="scheduled">Programado</button></form>
-    <form method="post" action={api}><button class:list={['danger', { current: isLive }]} name="action" value="live">En vivo</button></form>
+    <form method="post" action={api} onsubmit={hasScore && m.status !== 'scheduled' ? `return confirm('Se va a borrar el resultado ${hg}-${ag} y el partido queda como programado. ¿Seguir?')` : undefined}><button class:list={['ghost', { current: m.status === 'scheduled' }]} name="action" value="scheduled">Programado</button></form>
+    <form method="post" action={api} onsubmit={isFinal ? `return confirm('El partido ya está finalizado. Vuelve a En vivo manteniendo el ${hg}-${ag}; la hora de finalización se vuelve a tomar al cerrarlo. ¿Seguir?')` : undefined}><button class:list={['danger', { current: isLive }]} name="action" value="live">En vivo</button></form>
     <form method="post" action={api}><button class:list={[{ current: isFinal }]} name="action" value="finished">Final</button></form>
-    <form method="post" action={api}><button class:list={['warn', { current: m.status === 'postponed' }]} name="action" value="postponed">Postergado</button></form>
+    <form method="post" action={api} onsubmit={hasScore ? `return confirm('Postergar borra el resultado ${hg}-${ag} y deja el partido a cero. ¿Seguir?')` : undefined}><button class:list={['warn', { current: m.status === 'postponed' }]} name="action" value="postponed">Postergado</button></form>
   </div>
 
   {isLive && (
@@ -79,6 +83,19 @@ const when = (iso: string) =>
         <input type="number" name="minute" min="0" max="130" inputmode="numeric" value={m.minute ?? ''} placeholder="min" />
         <button name="action" value="minute" style="min-height:48px">Guardar</button>
       </form>
+    </>
+  )}
+
+  {(isLive || isFinal) && (
+    <>
+      <h2>Penales (solo si hubo definición)</h2>
+      <form method="post" action={api} class="minute">
+        <input type="number" name="home_pens" min="0" max="30" inputmode="numeric" value={m.home_pens ?? ''} placeholder={m.home_short ?? 'Local'} aria-label="Penales local" />
+        <span>-</span>
+        <input type="number" name="away_pens" min="0" max="30" inputmode="numeric" value={m.away_pens ?? ''} placeholder={m.away_short ?? 'Visitante'} aria-label="Penales visitante" />
+        <button name="action" value="pens" style="min-height:48px">Guardar</button>
+      </form>
+      <p class="small">Para el alargue no hace falta nada especial: seguí sumando goles y cargá el minuto (91 a 120). Dejá los penales vacíos para quitarlos.</p>
     </>
   )}
 

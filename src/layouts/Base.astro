@@ -43,6 +43,8 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=10, sta
       a.match { text-decoration:none; color:inherit; }
       .card.pad { padding:.9rem; }
       .live-dot { color:var(--live); font-weight:700; }
+      .badge-final { display:inline-block; background:#e8f1ec; color:var(--accent); border-radius:999px; padding:.1rem .55rem; font-size:.75rem; font-weight:700; }
+      .pens { font-size:.8rem; color:var(--muted); font-weight:600; }
       .is-live .live-dot, .live-block h2 .live-dot { animation: blink 1.2s ease-in-out infinite; }
       @keyframes blink { 0%, 100% { opacity:1; } 50% { opacity:.25; } }
       @media (prefers-reduced-motion: reduce) { .live-dot { animation:none !important; } }

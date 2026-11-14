@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
-import { deleteMatch, updateMatch, validateMatchInput } from '../../../../../lib/fixture-admin';
+import { deleteMatch, findDuplicate, updateMatch, validateMatchInput } from '../../../../../lib/fixture-admin';
 
 export const POST: APIRoute = async ({ params, request, locals, redirect }) => {
   const id = Number(params.id);
@@ -18,6 +18,8 @@ export const POST: APIRoute = async ({ params, request, locals, redirect }) => {
   }
   const v = validateMatchInput(form);
   if (!v.ok) return redirect(`/admin/partido/${id}/editar?error=${encodeURIComponent(v.error)}`, 303);
+  const dup = await findDuplicate(v.data, id);
+  if (dup) return redirect(`/admin/partido/${id}/editar?error=${encodeURIComponent(`Ya existe ese partido en esa fecha (#${dup}).`)}`, 303);
   await updateMatch(id, v.data, actor);
   return redirect(`/admin/partido/${id}/editar?ok=1`, 303);
 };

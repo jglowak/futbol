@@ -99,6 +99,19 @@ export function validateMatchInput(form: FormData): { ok: true; data: MatchInput
   };
 }
 
+/** Mismo cruce (en cualquier orden) en la misma etapa y la misma fecha/instancia. */
+export async function findDuplicate(data: MatchInput, excludeId?: number): Promise<number | null> {
+  const row = await env.DB.prepare(
+    `SELECT id FROM matches
+     WHERE stage_id = ? AND round = ? AND id <> ?
+       AND ((home_club_id = ? AND away_club_id = ?) OR (home_club_id = ? AND away_club_id = ?))
+     LIMIT 1`,
+  )
+    .bind(data.stage_id, data.round, excludeId ?? 0, data.home_club_id, data.away_club_id, data.away_club_id, data.home_club_id)
+    .first<{ id: number }>();
+  return row?.id ?? null;
+}
+
 export async function createMatch(data: MatchInput, actor: string): Promise<number> {
   const slug = await computeMatchSlug(data.home_club_id, data.away_club_id, data.kickoff_at);
   const row = await env.DB.prepare(

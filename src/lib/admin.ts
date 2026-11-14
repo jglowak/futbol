@@ -8,15 +8,19 @@ export type MatchState = {
   home_goals: number | null;
   away_goals: number | null;
   minute: number | null;
+  home_pens: number | null;
+  away_pens: number | null;
+  finished_at: string | null;
 };
 
 export type Action =
   | { type: 'goal'; side: 'home' | 'away'; delta: 1 | -1 }
   | { type: 'status'; status: 'scheduled' | 'live' | 'finished' | 'postponed' }
   | { type: 'minute'; minute: number | null }
+  | { type: 'pens'; home: number | null; away: number | null }
   | { type: 'undo' };
 
-const STATE_SQL = `SELECT status, home_goals, away_goals, minute FROM matches WHERE id = ?`;
+const STATE_SQL = `SELECT status, home_goals, away_goals, minute, home_pens, away_pens, finished_at FROM matches WHERE id = ?`;
 
 export async function getMatchState(id: number): Promise<MatchState | null> {
   return env.DB.prepare(STATE_SQL).bind(id).first<MatchState>();
@@ -29,6 +33,7 @@ function applyAction(before: MatchState, action: Action): MatchState {
       const key = action.side === 'home' ? 'home_goals' : 'away_goals';
       // Al cargar el primer gol de un partido programado, pasa a "en vivo".
       if (s.status === 'scheduled' || s.status === 'postponed') s.status = 'live';
+      if (s.status === 'live') s.finished_at = null;
       s.home_goals ??= 0;
       s.away_goals ??= 0;
       s[key] = Math.max(0, (s[key] ?? 0) + action.delta);
@@ -44,8 +49,19 @@ function applyAction(before: MatchState, action: Action): MatchState {
         s.home_goals = null;
         s.away_goals = null;
         s.minute = null;
+        s.home_pens = null;
+        s.away_pens = null;
       }
-      if (action.status === 'finished') s.minute = null;
+      if (action.status === 'finished') {
+        s.minute = null;
+        s.finished_at = new Date().toISOString();
+      } else {
+        s.finished_at = null;
+      }
+      break;
+    case 'pens':
+      s.home_pens = action.home;
+      s.away_pens = action.away;
       break;
     case 'minute':
       s.minute = action.minute;
@@ -59,8 +75,8 @@ function applyAction(before: MatchState, action: Action): MatchState {
 async function writeState(id: number, before: MatchState, after: MatchState, action: string, actor: string, extra?: object) {
   await env.DB.batch([
     env.DB.prepare(
-      `UPDATE matches SET status = ?, home_goals = ?, away_goals = ?, minute = ?, updated_at = datetime('now') WHERE id = ?`,
-    ).bind(after.status, after.home_goals, after.away_goals, after.minute, id),
+      `UPDATE matches SET status = ?, home_goals = ?, away_goals = ?, minute = ?, home_pens = ?, away_pens = ?, finished_at = ?, updated_at = datetime('now') WHERE id = ?`,
+    ).bind(after.status, after.home_goals, after.away_goals, after.minute, after.home_pens, after.away_pens, after.finished_at, id),
     env.DB.prepare(`INSERT INTO audit_log (entity, entity_id, action, payload, actor) VALUES ('match', ?, ?, ?, ?)`).bind(
       id,
       action,
@@ -116,7 +132,7 @@ export async function lastUndoableEntry(id: number): Promise<AuditEntry | null> 
 // --- Listados para el panel ---
 
 const ADMIN_MATCH_SELECT = `
-  SELECT m.id, m.slug, m.round, m.group_name, m.kickoff_at, m.venue, m.status,
+  SELECT m.id, m.slug, m.round, m.group_name, m.kickoff_at, m.venue, m.status, m.finished_at,
          m.home_goals, m.away_goals, m.home_pens, m.away_pens, m.minute,
          h.id AS home_id, h.name AS home_name, h.short_name AS home_short, h.slug AS home_slug, h.crest_url AS home_crest,
          a.id AS away_id, a.name AS away_name, a.short_name AS away_short, a.slug AS away_slug, a.crest_url AS away_crest,
@@ -152,8 +168,9 @@ export async function adminLists(): Promise<AdminLists> {
     env.DB.prepare(`${ADMIN_MATCH_SELECT} WHERE m.status IN ('scheduled','postponed') AND m.kickoff_at >= ? ORDER BY m.kickoff_at LIMIT 12`)
       .bind(dayEnd)
       .all<MatchRow>(),
-    env.DB.prepare(`${ADMIN_MATCH_SELECT} WHERE m.status = 'finished' AND m.kickoff_at < ? ORDER BY m.kickoff_at DESC LIMIT 12`)
-      .bind(dayStart)
+    // Finalizados que no son de hoy (los de hoy ya aparecen en "Hoy"), los más recientes primero.
+    env.DB.prepare(`${ADMIN_MATCH_SELECT} WHERE m.status = 'finished' AND NOT (m.kickoff_at >= ? AND m.kickoff_at < ?) ORDER BY COALESCE(m.finished_at, m.kickoff_at) DESC LIMIT 12`)
+      .bind(dayStart, dayEnd)
       .all<MatchRow>(),
   ]);
   return { live: live.results, today: today.results, upcoming: upcoming.results, recent: recent.results };
