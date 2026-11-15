@@ -1,0 +1,14 @@
+---
+import type { TieState } from '../lib/phases-core';
+import TieCard from './TieCard.astro';
+type Club = { id: number; name: string; short_name: string | null; slug: string; crest_url: string | null };
+interface Props { states: TieState[]; clubs: Map<number, Club>; slugs: Map<number, string>; notes?: Map<string, string | null> }
+const { states, clubs, slugs, notes = new Map() } = Astro.props;
+---
+<div class="bracket">
+  {states.map((st) => (
+    <TieCard st={st} clubs={clubs} matchSlug={st.match ? (slugs.get(st.match.id) ?? null) : null}>
+      {notes.get(st.code) && <p class="tie-note">{notes.get(st.code)}</p>}
+    </TieCard>
+  ))}
+</div>

@@ -1,8 +1,8 @@
 ---
 import type { StandingRow } from '../lib/standings';
 import Crest from './Crest.astro';
-interface Props { rows: StandingRow[] }
-const { rows } = Astro.props;
+interface Props { rows: StandingRow[]; relegation?: number }
+const { rows, relegation = 0 } = Astro.props;
 const notes = rows.filter((r) => r.adjustmentReasons.length > 0);
 ---
 <div class="card">
@@ -12,9 +12,9 @@ const notes = rows.filter((r) => r.adjustmentReasons.length > 0);
     </thead>
     <tbody>
       {rows.map((r) => (
-        <tr>
+        <tr class:list={{ relegation: relegation > 0 && r.position > rows.length - relegation }}>
           <td>{r.position}</td>
-          <td class="club"><Crest src={r.crestUrl} name={r.name} /> <span class="full">{r.name}</span><span class="short">{r.shortName ?? r.name}</span>{r.pointsAdjustment !== 0 && <sup> *</sup>}</td>
+          <td class="club"><Crest src={r.crestUrl} name={r.name} /> {r.slug ? <a class="club-link" href={`/club/${r.slug}`}><span class="full">{r.name}</span><span class="short">{r.shortName ?? r.name}</span></a> : <><span class="full">{r.name}</span><span class="short">{r.shortName ?? r.name}</span></>}{r.pointsAdjustment !== 0 && <sup> *</sup>}</td>
           <td>{r.played}</td><td>{r.won}</td><td>{r.drawn}</td><td>{r.lost}</td>
           <td>{r.goalsFor}</td><td>{r.goalsAgainst}</td>
           <td>{r.goalDifference > 0 ? `+${r.goalDifference}` : r.goalDifference}</td>

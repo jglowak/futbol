@@ -1,0 +1,67 @@
+---
+import Base from '../../layouts/Base.astro';
+import MatchList from '../../components/MatchList.astro';
+import Crest from '../../components/Crest.astro';
+import { env } from 'cloudflare:workers';
+import type { MatchRow } from '../../lib/db';
+
+const slug = Astro.params.slug ?? '';
+const club = await env.DB.prepare(`SELECT id, slug, name, short_name, city, founded_year, crest_url FROM clubs WHERE slug = ?`).bind(slug).first<{ id: number; slug: string; name: string; short_name: string | null; city: string | null; founded_year: number | null; crest_url: string | null }>();
+if (!club) return new Response('Club no encontrado', { status: 404 });
+
+const SEL = `
+  SELECT m.id, m.slug, m.round, m.group_name, m.kickoff_at, m.venue, m.status, m.finished_at,
+         m.home_goals, m.away_goals, m.home_pens, m.away_pens, m.minute,
+         h.id AS home_id, h.name AS home_name, h.short_name AS home_short, h.slug AS home_slug, h.crest_url AS home_crest,
+         a.id AS away_id, a.name AS away_name, a.short_name AS away_short, a.slug AS away_slug, a.crest_url AS away_crest,
+         t.name AS tournament_name, t.slug AS tournament_slug
+  FROM matches m JOIN clubs h ON h.id = m.home_club_id JOIN clubs a ON a.id = m.away_club_id
+  JOIN stages s ON s.id = m.stage_id JOIN tournaments t ON t.id = s.tournament_id
+  WHERE (m.home_club_id = ? OR m.away_club_id = ?)`;
+const [played, upcoming, titles] = await Promise.all([
+  env.DB.prepare(`${SEL} AND m.status IN ('finished','live') ORDER BY m.kickoff_at DESC LIMIT 10`).bind(club.id, club.id).all<MatchRow>(),
+  env.DB.prepare(`${SEL} AND m.status IN ('scheduled','postponed') ORDER BY m.kickoff_at IS NULL, m.kickoff_at ASC LIMIT 5`).bind(club.id, club.id).all<MatchRow>(),
+  env.DB.prepare(`SELECT ti.label, se.name AS season, se.year FROM titles ti LEFT JOIN seasons se ON se.id = ti.season_id WHERE ti.club_id = ? ORDER BY se.year DESC, ti.id DESC`).bind(club.id).all<{ label: string; season: string | null; year: number | null }>(),
+]);
+// Forma reciente (últimos 5 finalizados): G/E/P
+const form = played.results.filter((m) => m.status === 'finished').slice(0, 5).map((m) => {
+  const mine = m.home_id === club.id ? m.home_goals! : m.away_goals!;
+  const theirs = m.home_id === club.id ? m.away_goals! : m.home_goals!;
+  return mine > theirs ? 'G' : mine < theirs ? 'P' : 'E';
+});
+// Posición actual en tablas de la temporada en curso
+const { results: tables } = await env.DB.prepare(
+  `SELECT DISTINCT st.slug, st.name FROM standing_tables st JOIN standing_table_sources src ON src.table_id = st.id
+   JOIN stage_clubs sc ON sc.stage_id = src.stage_id AND (src.group_name = '' OR src.group_name = sc.group_name)
+   WHERE sc.club_id = ? ORDER BY st.id`,
+).bind(club.id).all<{ slug: string; name: string }>();
+---
+<Base title={`${club.name} · Fútbol Florida`} description={`Partidos, resultados y palmarés de ${club.name}.`}>
+  <div class="card pad" style="display:flex;gap:1rem;align-items:center">
+    <Crest src={club.crest_url} name={club.name} size={64} />
+    <div>
+      <h1 style="margin:0">{club.name}</h1>
+      <p class="note" style="margin:.2rem 0 0">{[club.city, club.founded_year ? `fundado en ${club.founded_year}` : null].filter(Boolean).join(' · ')}</p>
+      {form.length > 0 && <p class="note" style="margin:.3rem 0 0">Últimos partidos: {form.map((f) => <span class:list={['form', `form-${f}`]}>{f}</span>)}</p>}
+    </div>
+  </div>
+
+  {titles.results.length > 0 && (
+    <>
+      <h2>Palmarés</h2>
+      <div class="card pad"><ul style="margin:0;padding-left:1.1rem">{titles.results.map((t) => <li>🏆 {t.label}</li>)}</ul></div>
+    </>
+  )}
+
+  {tables.length > 0 && (
+    <>
+      <h2>Tablas</h2>
+      <ul class="links">{tables.map((t) => <li><a href={`/tabla/${t.slug}`}>{t.name}</a></li>)}</ul>
+    </>
+  )}
+
+  <h2>Próximos partidos</h2>
+  <MatchList matches={upcoming.results} showTournament />
+  <h2>Últimos partidos</h2>
+  <MatchList matches={played.results} showTournament />
+</Base>

@@ -3,6 +3,9 @@ import Base from '../../layouts/Base.astro';
 import MatchList from '../../components/MatchList.astro';
 import StandingsTable from '../../components/StandingsTable.astro';
 import { getComputedTable, getTablesForTournament, getTournament, getTournamentMatches } from '../../lib/db';
+import Bracket from '../../components/Bracket.astro';
+import { loadSeasonContext } from '../../lib/phases';
+import { env } from 'cloudflare:workers';
 
 const { slug } = Astro.params;
 const tournament = slug ? await getTournament(slug) : null;
@@ -14,6 +17,18 @@ const [matches, tables] = await Promise.all([
 ]);
 const computed = (await Promise.all(tables.map((t) => getComputedTable(t.slug)))).filter((x) => x !== null);
 
+// Llaves de este torneo (si las tiene) y resumen de la temporada
+const seasonRow = await env.DB.prepare(`SELECT season_id FROM tournaments WHERE id = ?`).bind(tournament.id).first<{ season_id: number }>();
+const sc = seasonRow ? await loadSeasonContext(seasonRow.season_id) : null;
+const stageIds = new Set((await env.DB.prepare(`SELECT id FROM stages WHERE tournament_id = ?`).bind(tournament.id).all<{ id: number }>()).results.map((r) => r.id));
+const tieStates = (sc?.ties ?? []).filter((t) => stageIds.has(t.stage_id)).map((t) => sc!.states.get(t.code)!);
+const tieNotes = new Map((sc?.ties ?? []).map((t) => [t.code, t.note]));
+const matchSlugs = new Map(matches.map((m) => [m.id, m.slug ?? String(m.id)]));
+const relegation = sc?.season.config.relegation ?? 0;
+const isAnual = (slug: string) => slug.startsWith('anual');
+const seasonCfg = sc?.season.config.definition;
+const isSeasonTournament = tournament.slug === sc?.season.slug;
+
 const rounds = new Map<string, typeof matches>();
 for (const m of matches) {
   const key = m.round || 'Partidos';
@@ -23,12 +38,30 @@ for (const m of matches) {
 <Base title={`${tournament.name} — Fútbol`}>
   <h1>{tournament.name} <small>· {tournament.category} · {tournament.season_name}</small></h1>
 
+  {isSeasonTournament && sc?.summary && (
+    <div class="card pad" style="margin-bottom:.8rem">
+      <p style="margin:0 0 .3rem"><strong>Campeón del Apertura:</strong> {sc.summary.aperturaChampion.club ? sc.clubs.get(sc.summary.aperturaChampion.club)?.name : 'a definir'}</p>
+      <p style="margin:0 0 .3rem"><strong>Campeón del Clausura:</strong> {sc.summary.clausuraChampion.club ? sc.clubs.get(sc.summary.clausuraChampion.club)?.name : 'a definir'}</p>
+      <p style="margin:0 0 .3rem"><strong>1° de la Tabla Anual:</strong> {sc.summary.anualLeader.club ? sc.clubs.get(sc.summary.anualLeader.club)?.name : 'a definir'}</p>
+      <p class="note" style="margin:.4rem 0 0">{sc.summary.explanation}</p>
+      {sc.summary.seasonChampion.club && <p style="margin:.5rem 0 0;font-size:1.1rem">🏆 <strong>Campeón de la temporada: {sc.clubs.get(sc.summary.seasonChampion.club)?.name}</strong></p>}
+    </div>
+  )}
+
   {computed.map(({ table, rows }) => (
     <>
       <h2>{table.name}</h2>
-      <StandingsTable rows={rows} />
+      <StandingsTable rows={rows} relegation={isAnual(table.slug) ? relegation : 0} />
+      {isAnual(table.slug) && relegation > 0 && <p class="note">Los últimos {relegation} descienden a la Divisional B. La Anual suma Apertura + series del Clausura (sin semifinales).</p>}
     </>
   ))}
+
+  {tieStates.length > 0 && (
+    <>
+      <h2>{isSeasonTournament ? 'Finales' : 'Semifinales y final'}</h2>
+      <Bracket states={tieStates} clubs={sc!.clubs} slugs={matchSlugs} notes={tieNotes} />
+    </>
+  )}
 
   <h2>Fixture y resultados</h2>
   {[...rounds.entries()].map(([round, list]) => (

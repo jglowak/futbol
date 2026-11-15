@@ -71,8 +71,21 @@ usan nombres y fecha (`/partido/candil-vs-alianza-14-11-2026`); los enlaces num�
 Para volver los resultados al estado importado de AnWP después de hacer pruebas:
 `npx wrangler d1 execute futbol-db --remote --file=scripts/reset-resultados.sql`.
 
+## Motor de fases y cierre de temporada
+
+`src/lib/phases-core.ts` (puro, con tests) resuelve **llaves** cuyos participantes son referencias
+("1° de la tabla X", "ganador de la llave Y") y que pueden tener una **condición** para jugarse. La temporada 2026
+tiene: semifinales y final del Clausura, y las tres finales posibles del art. 5 (B, C y D). `docs/reglamento-divisional-a-2026.md`
+resume las reglas. Igualdades que el reglamento resuelve con partido extra, fair play o sorteo se cargan como
+**desempate manual** de la tabla (panel → torneo → "Desempates de tabla").
+
+Panel: `/admin/torneos/[id]` muestra las llaves y permite crear su partido cuando está lista; `/admin/temporada/[id]`
+muestra campeones, descensos, cupos OFI y el **cierre** (registra títulos en el palmarés; reversible).
+Público: llave en `/torneo/[slug]`, página de club en `/club/[slug]`, zona de descenso en la Tabla Anual.
+
 ## Próximos pasos
 
 - Panel: goleadores y tarjetas por partido (eventos), colaboradores con acceso a un solo partido.
-- Alta de torneos y clubes con plantillas (Apertura/Clausura, copa eliminatoria) y motor de etapas condicionales.
+- Alta de torneos y clubes con plantillas (Apertura/Clausura LFF, copa eliminatoria) para la temporada 2027.
+- Importar el histórico de clubes y competiciones de AnWP (con limpieza de duplicados).
 - Alineaciones y goles desde la planilla (foto → IA → revisión).

@@ -3,7 +3,7 @@
 -- Uso remoto: npx wrangler d1 execute futbol-db --remote --file=scripts/reset-resultados.sql
 UPDATE matches SET minute = NULL, home_pens = NULL, away_pens = NULL;
 UPDATE matches SET status = 'finished' WHERE id <= 72;
-UPDATE matches SET status = 'scheduled', home_goals = NULL, away_goals = NULL WHERE id BETWEEN 73 AND 78;
+UPDATE matches SET status = 'scheduled', home_goals = NULL, away_goals = NULL, finished_at = NULL WHERE id >= 73;
 UPDATE matches SET home_goals = 2, away_goals = 0 WHERE id = 1;
 UPDATE matches SET home_goals = 1, away_goals = 0 WHERE id = 2;
 UPDATE matches SET home_goals = 1, away_goals = 4 WHERE id = 3;
@@ -76,7 +76,13 @@ UPDATE matches SET home_goals = 1, away_goals = 2 WHERE id = 69;
 UPDATE matches SET home_goals = 1, away_goals = 0 WHERE id = 70;
 UPDATE matches SET home_goals = 0, away_goals = 1 WHERE id = 71;
 UPDATE matches SET home_goals = 0, away_goals = 2 WHERE id = 72;
-DELETE FROM matches WHERE id > 78 AND legacy_id IS NULL;
+UPDATE ties SET match_id = NULL, home_override_club_id = NULL, away_override_club_id = NULL;
+UPDATE standing_tables SET position_overrides = '{}';
+DELETE FROM titles WHERE manual = 0;
+UPDATE seasons SET closed_at = NULL;
+UPDATE tournaments SET status = CASE WHEN slug LIKE 'apertura%' THEN 'finished' WHEN slug LIKE 'clausura%' THEN 'ongoing' ELSE 'upcoming' END;
+-- Partidos creados en pruebas (no vienen de AnWP): solo los de llaves/pruebas, no el fixture oficial de series
+DELETE FROM matches WHERE legacy_id IS NULL AND (round NOT LIKE 'Fecha %' OR stage_id NOT IN (1,2));
 DELETE FROM match_posts;
 DELETE FROM match_photos;
 DELETE FROM audit_log WHERE entity IN ('match', 'match_post', 'match_photo', 'stage');

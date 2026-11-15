@@ -1,0 +1,75 @@
+---
+import Admin from '../../../layouts/Admin.astro';
+import TieCard from '../../../components/TieCard.astro';
+import { env } from 'cloudflare:workers';
+import { loadSeasonContext, relegationAndOfi } from '../../../lib/phases';
+
+const id = Number(Astro.params.id);
+const sc = Number.isInteger(id) ? await loadSeasonContext(id) : null;
+if (!sc) return new Response('Temporada no encontrada', { status: 404 });
+const { season, summary, states, clubs } = sc;
+const ok = Astro.url.searchParams.get('ok');
+const error = Astro.url.searchParams.get('error');
+const name = (club: number | null, reason: string | null) => (club ? (clubs.get(club)?.name ?? `#${club}`) : `— ${reason ?? 'pendiente'}`);
+const { relegated, ofi, anualClosed } = relegationAndOfi(sc);
+const { results: slugRows } = await env.DB.prepare(`SELECT id, slug FROM matches WHERE id IN (SELECT match_id FROM ties WHERE match_id IS NOT NULL)`).all<{ id: number; slug: string | null }>();
+const slugs = new Map(slugRows.map((r) => [r.id, r.slug ?? String(r.id)]));
+const finals = sc.ties.filter((t) => t.code.startsWith(`${season.slug}-`)).map((t) => ({ t, st: states.get(t.code)! }));
+const canClose = Boolean(summary?.seasonChampion.club) && anualClosed && !season.closed_at;
+---
+<Admin title={season.name} back="/admin/torneos">
+  {ok && <div class="notice">{ok === 'cerrada' ? 'Temporada cerrada: títulos registrados.' : ok === 'reabierta' ? 'Temporada reabierta.' : 'Listo.'}</div>}
+  {error && <div class="notice" style="background:#fde8e6;border-color:#f3b3ad">{error}</div>}
+
+  <h2>Definición del campeón (art. 5)</h2>
+  <div class="card" style="padding:.9rem">
+    <p style="margin:0 0 .4rem"><strong>Campeón del Apertura:</strong> {name(summary?.aperturaChampion.club ?? null, summary?.aperturaChampion.reason ?? null)}</p>
+    <p style="margin:0 0 .4rem"><strong>Campeón del Clausura:</strong> {name(summary?.clausuraChampion.club ?? null, summary?.clausuraChampion.reason ?? null)}</p>
+    <p style="margin:0 0 .4rem"><strong>1° de la Tabla Anual:</strong> {name(summary?.anualLeader.club ?? null, summary?.anualLeader.reason ?? null)}</p>
+    <p class="small" style="margin:.6rem 0 0">{summary?.explanation}{summary?.rule ? ` (caso ${summary.rule})` : ''}</p>
+    <p style="margin:.6rem 0 0;font-size:1.1rem"><strong>Campeón de la temporada:</strong> {summary?.seasonChampion.club ? <span class="badge-final">{name(summary.seasonChampion.club, null)}</span> : <span class="small">{summary?.seasonChampion.reason}</span>}</p>
+  </div>
+
+  {finals.length > 0 && (
+    <>
+      <h2>Finales de la temporada</h2>
+      {finals.map(({ t, st }) => (
+        <div class="card" style="padding:.8rem;margin-bottom:.6rem">
+          <TieCard st={st} clubs={clubs} matchSlug={st.match ? slugs.get(st.match.id) ?? null : null} admin>
+            {t.note && <p class="tie-note">{t.note}</p>}
+            {st.status === 'ready' && (
+              <form method="post" action={`/api/admin/llave/${t.id}`} class="edit-form" style="padding:.4rem 0 0">
+                <label>Día y hora (Uruguay) <input type="datetime-local" name="kickoff_local" /></label>
+                <label>Cancha <input name="venue" placeholder="Cancha neutral" /></label>
+                <button name="action" value="create">Crear partido</button>
+              </form>
+            )}
+          </TieCard>
+        </div>
+      ))}
+    </>
+  )}
+
+  <h2>Descensos y OFI (Tabla Anual)</h2>
+  <div class="card" style="padding:.9rem">
+    {!anualClosed && <p class="small" style="margin-top:0">La Tabla Anual todavía no está cerrada; esto es provisorio.</p>}
+    <p style="margin:0 0 .4rem"><strong>Descienden ({season.config.relegation ?? 2}):</strong> {relegated.map((c) => clubs.get(c)?.name).join(', ') || '—'}</p>
+    <p style="margin:0"><strong>Copa Nacional de Clubes OFI ({season.config.ofi_slots ?? 2} cupos):</strong> {ofi.map((c) => clubs.get(c)?.name).join(', ') || '—'} <span class="small">(campeón + Tabla Anual, sujeto a corrimientos de OFI)</span></p>
+  </div>
+
+  <h2>Cierre</h2>
+  <div class="card" style="padding:.9rem">
+    {season.closed_at ? (
+      <>
+        <p style="margin-top:0">Temporada cerrada. Los títulos ya figuran en el palmarés de cada club.</p>
+        <form method="post" action={`/api/admin/temporada/${id}`} onsubmit="return confirm('¿Reabrir la temporada? Se quitan los títulos registrados automáticamente.')"><button class="ghost" name="action" value="reopen">Reabrir temporada</button></form>
+      </>
+    ) : (
+      <>
+        <p class="small" style="margin-top:0">Al cerrar se registran los títulos (Apertura, Clausura y Temporada) en el palmarés y los torneos quedan terminados. Se puede reabrir.</p>
+        <form method="post" action={`/api/admin/temporada/${id}`} onsubmit="return confirm('¿Cerrar la temporada y registrar los títulos?')"><button name="action" value="close" disabled={!canClose}>Cerrar temporada</button></form>
+        {!canClose && <p class="small">Se habilita cuando haya campeón de temporada y la Tabla Anual esté completa.</p>}
+      </>
+    )}
+  </div>
+</Admin>

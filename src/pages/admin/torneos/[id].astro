@@ -4,6 +4,8 @@ import AdminMatchRow from '../../../components/AdminMatchRow.astro';
 import { env } from 'cloudflare:workers';
 import { tournamentWithStages } from '../../../lib/fixture-admin';
 import type { MatchRow } from '../../../lib/db';
+import { loadSeasonContext } from '../../../lib/phases';
+import TieCard from '../../../components/TieCard.astro';
 
 const id = Number(Astro.params.id);
 const data = Number.isInteger(id) ? await tournamentWithStages(id) : null;
@@ -29,10 +31,25 @@ for (const m of matches) {
 const groupsOf = (stageId: number) => [...new Set(clubs.filter((c) => c.stage_id === stageId).map((c) => c.group_name))];
 const ok = Astro.url.searchParams.get('ok');
 const error = Astro.url.searchParams.get('error');
+
+// Llaves de este torneo (semifinales, finales…) y su estado según el motor de fases.
+const sc = await loadSeasonContext(tournament.season_id);
+const stageIds = new Set(stages.map((s) => s.id));
+const tiesHere = (sc?.ties ?? []).filter((t) => stageIds.has(t.stage_id));
+const matchSlugs = new Map(matches.map((m) => [m.id, m.slug ?? String(m.id)]));
+const allClubs = [...(sc?.clubs.values() ?? [])].sort((a, b) => a.name.localeCompare(b.name, 'es'));
+// Tablas referenciadas que piden desempate manual
+const tablesNeedingTiebreak = [...(sc?.ctx.tables.entries() ?? [])].filter(([slug, t]) => {
+  if (t.pending > 0) return false;
+  return tiesHere.some((tie) => JSON.stringify([tie.home_ref, tie.away_ref, tie.condition]).includes(`"table":"${slug}"`)) &&
+    [...sc!.states.values()].some((st) => (st.home.reason ?? '').includes(t.name) || (st.away.reason ?? '').includes(t.name));
+});
+const back = `/admin/torneos/${id}`;
 const KIND: Record<string, string> = { league: 'Liga', groups: 'Series', knockout: 'Eliminatoria' };
 ---
 <Admin title={tournament.name} back="/admin/torneos">
   {ok && <div class="notice">{ok.startsWith('creado') ? 'Partido creado.' : ok === 'borrado' ? 'Partido borrado.' : ok.startsWith('fixture') ? `Fixture generado: ${ok.split('-')[1]} partidos.` : 'Listo.'}</div>}
+  <p class="small"><a href={`/admin/temporada/${tournament.season_id}`}>Ver definición y cierre de la temporada ›</a></p>
   {error && <div class="notice" style="background:#fde8e6;border-color:#f3b3ad">{error}</div>}
 
   {stages.map((st) => {
@@ -72,6 +89,61 @@ const KIND: Record<string, string> = { league: 'Liga', groups: 'Series', knockou
       </>
     );
   })}
+
+  {tiesHere.length > 0 && (
+    <>
+      <h2 id="llaves">Llaves de definición</h2>
+      <p class="small">Los participantes salen solos de las tablas y de las llaves anteriores. Cuando una llave está lista, cargá día, hora y cancha y creá el partido.</p>
+      {tiesHere.map((tie) => {
+        const st = sc!.states.get(tie.code)!;
+        return (
+          <div class="card" style="padding:.8rem;margin-bottom:.6rem">
+            <TieCard st={st} clubs={sc!.clubs} matchSlug={st.match ? matchSlugs.get(st.match.id) ?? null : null} admin>
+              {tie.note && <p class="tie-note">{tie.note}</p>}
+              {st.status === 'ready' && (
+                <form method="post" action={`/api/admin/llave/${tie.id}`} class="edit-form" style="padding:.4rem 0 0">
+                  <label>Día y hora (Uruguay) <input type="datetime-local" name="kickoff_local" /></label>
+                  <label>Cancha <input name="venue" placeholder={tie.neutral ? 'Cancha neutral' : 'Cancha del local'} /></label>
+                  <button name="action" value="create">Crear partido de {tie.label}</button>
+                </form>
+              )}
+              {st.match && (
+                <form method="post" action={`/api/admin/llave/${tie.id}`} onsubmit="return confirm('¿Desvincular el partido de esta llave? El partido no se borra.')" style="margin-top:.4rem">
+                  <button class="ghost tiny" name="action" value="unlink">Desvincular partido</button>
+                </form>
+              )}
+              {!st.match && (
+                <details style="margin-top:.5rem"><summary class="small">Forzar participantes (solo si el reglamento lo resolvió de otra forma)</summary>
+                  <form method="post" action={`/api/admin/llave/${tie.id}`} class="relato-row" style="margin-top:.4rem">
+                    <select name="home_club_id" style="flex:1"><option value="">Local: automático</option>{allClubs.map((c) => <option value={c.id} selected={tie.home_override_club_id === c.id}>{c.name}</option>)}</select>
+                    <select name="away_club_id" style="flex:1"><option value="">Visitante: automático</option>{allClubs.map((c) => <option value={c.id} selected={tie.away_override_club_id === c.id}>{c.name}</option>)}</select>
+                    <button class="ghost tiny" name="action" value="override">Guardar</button>
+                  </form>
+                </details>
+              )}
+            </TieCard>
+          </div>
+        );
+      })}
+      {tablesNeedingTiebreak.length > 0 && (
+        <>
+          <h3 style="font-size:.9rem">Desempates de tabla</h3>
+          {tablesNeedingTiebreak.map(([slug, t]) => (
+            <form method="post" action={`/api/admin/tabla/${slug}`} class="card edit-form" style="margin-bottom:.6rem">
+              <strong>{t.name}</strong>
+              <input type="hidden" name="back" value={back} />
+              <label>Posición <input type="number" name="rank" min="1" value="1" /></label>
+              <label>Club que ocupa esa posición
+                <select name="club_id"><option value="">(quitar desempate)</option>{t.rows.map((r) => <option value={r.clubId}>{r.position}° {r.name}</option>)}</select>
+              </label>
+              <label>Motivo <input name="reason" placeholder="Partido de desempate 2-1 / fair play / sorteo" /></label>
+              <button class="ghost">Guardar desempate</button>
+            </form>
+          ))}
+        </>
+      )}
+    </>
+  )}
 
   <h2 id="nuevo">Nuevo partido</h2>
   <form method="post" action={`/api/admin/torneo/${id}`} class="card edit-form">

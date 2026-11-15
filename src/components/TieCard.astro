@@ -1,0 +1,34 @@
+---
+// Tarjeta de una llave (pública y panel). Muestra participantes resueltos o su descripción.
+import type { TieState } from '../lib/phases-core';
+import Crest from './Crest.astro';
+type Club = { id: number; name: string; short_name: string | null; slug: string; crest_url: string | null };
+interface Props { st: TieState; clubs: Map<number, Club>; matchSlug?: string | null; admin?: boolean }
+const { st, clubs, matchSlug = null, admin = false } = Astro.props;
+const side = (club: number | null, label: string, reason: string | null) => {
+  const c = club ? clubs.get(club) : null;
+  return { c, text: c ? (c.short_name ?? c.name) : label, reason };
+};
+const h = side(st.home.club, st.homeLabel, st.home.reason);
+const a = side(st.away.club, st.awayLabel, st.away.reason);
+const m = st.match;
+const score = m && m.status !== 'scheduled' && m.home_goals !== null ? `${m.home_goals} - ${m.away_goals}` : 'vs';
+const pens = m && m.home_pens !== null && m.away_pens !== null ? `(${m.home_pens}-${m.away_pens} pen.)` : '';
+const STATUS: Record<string, string> = { pending: 'A definir', not_needed: 'No se juega', ready: 'Lista para programar', scheduled: 'Programada', live: 'En vivo', finished: 'Jugada' };
+const href = matchSlug ? (admin && m ? `/admin/partido/${m.id}` : `/partido/${matchSlug}`) : null;
+---
+<div class:list={['tie', `tie-${st.status}`]}>
+  <div class="tie-head"><strong>{st.label}</strong> <span class="tie-status">{STATUS[st.status]}{st.neutral ? ' · cancha neutral' : ''}</span></div>
+  <div class="tie-body">
+    <div class:list={['tie-team', { winner: st.winner !== null && st.winner === st.home.club, unresolved: !h.c }]}>
+      {h.c && <Crest src={h.c.crest_url} name={h.c.name} size={22} />} <span>{h.text}</span>
+    </div>
+    <div class="tie-score">{href ? <a href={href}>{score}</a> : score}{pens && <small> {pens}</small>}</div>
+    <div class:list={['tie-team', { winner: st.winner !== null && st.winner === st.away.club, unresolved: !a.c }]}>
+      <span>{a.text}</span> {a.c && <Crest src={a.c.crest_url} name={a.c.name} size={22} />}
+    </div>
+  </div>
+  {st.status === 'pending' && (h.reason || a.reason) && <p class="tie-note">{h.reason ?? a.reason}</p>}
+  {st.needsDecision && <p class="tie-note warn">Terminó empatado: falta cargar la definición por penales.</p>}
+  <slot />
+</div>

@@ -43,8 +43,25 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=10, sta
       a.match { text-decoration:none; color:inherit; }
       .card.pad { padding:.9rem; }
       .live-dot { color:var(--live); font-weight:700; }
+      tr.relegation td { background:#fdf0ef; }
+      tr.relegation td:first-child { box-shadow: inset 3px 0 0 var(--live); }
+      a.club-link { color:inherit; text-decoration:none; }
+      .form { display:inline-block; width:1.4rem; height:1.4rem; line-height:1.4rem; text-align:center; border-radius:4px; color:#fff; font-size:.75rem; font-weight:700; margin-right:.15rem; }
+      .form-G { background:var(--accent); } .form-E { background:#8a94a6; } .form-P { background:var(--live); }
       .badge-final { display:inline-block; background:#e8f1ec; color:var(--accent); border-radius:999px; padding:.1rem .55rem; font-size:.75rem; font-weight:700; }
       .pens { font-size:.8rem; color:var(--muted); font-weight:600; }
+      .tie { }
+      .tie-head { display:flex; justify-content:space-between; gap:.5rem; align-items:baseline; font-size:.9rem; }
+      .tie-status { font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; }
+      .tie-not_needed { opacity:.55; }
+      .tie-body { display:grid; grid-template-columns:1fr auto 1fr; gap:.5rem; align-items:center; padding:.5rem 0; }
+      .tie-team { font-weight:600; font-size:.95rem; } .tie-team:last-child { text-align:right; }
+      .tie-team.unresolved { color:var(--muted); font-weight:500; font-style:italic; }
+      .tie-team.winner { color:var(--accent); } .tie-team.winner::after { content:' ✔'; }
+      .tie-score { font-weight:800; text-align:center; min-width:3.2rem; } .tie-score a { text-decoration:none; color:inherit; }
+      .tie-note { font-size:.78rem; color:var(--muted); margin:.2rem 0 0; } .tie-note.warn { color:var(--warn); }
+      .bracket .tie { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:.7rem .9rem; margin-bottom:.6rem; }
+
       .is-live .live-dot, .live-block h2 .live-dot { animation: blink 1.2s ease-in-out infinite; }
       @keyframes blink { 0%, 100% { opacity:1; } 50% { opacity:.25; } }
       @media (prefers-reduced-motion: reduce) { .live-dot { animation:none !important; } }
