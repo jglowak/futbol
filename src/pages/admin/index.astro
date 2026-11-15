@@ -28,7 +28,11 @@ const sections = [
   <p class="history" style="margin-top:1.5rem">Tocá un partido para cargar goles o el resultado final. Todo cambio se puede deshacer.</p>
 
   <h2>Fixture</h2>
-  <div class="card"><a class="row" href="/admin/torneos" style="grid-template-columns:1fr">Torneos, fixture y alta de partidos ›</a></div>
+  <div class="card">
+    <a class="row" href="/admin/torneos" style="grid-template-columns:1fr">Torneos, fixture y alta de partidos ›</a>
+    <a class="row" href="/admin/temporadas" style="grid-template-columns:1fr">Temporadas y plantillas de torneo ›</a>
+    <a class="row" href="/admin/clubes" style="grid-template-columns:1fr">Clubes ›</a>
+  </div>
 
   <h2>Herramientas</h2>
   {escudosMsg && <div class="notice">{escudosMsg === 'sin-r2' ? 'R2 todavía no está conectado al Worker.' : `Escudos copiados: ${escudosMsg}`}</div>}

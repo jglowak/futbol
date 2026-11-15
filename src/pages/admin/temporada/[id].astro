@@ -16,10 +16,54 @@ const { results: slugRows } = await env.DB.prepare(`SELECT id, slug FROM matches
 const slugs = new Map(slugRows.map((r) => [r.id, r.slug ?? String(r.id)]));
 const finals = sc.ties.filter((t) => t.code.startsWith(`${season.slug}-`)).map((t) => ({ t, st: states.get(t.code)! }));
 const canClose = Boolean(summary?.seasonChampion.club) && anualClosed && !season.closed_at;
+const { results: tournaments } = await env.DB.prepare(`SELECT id, slug, name, template, status FROM tournaments WHERE season_id = ? ORDER BY id`).bind(id).all<{ id: number; slug: string; name: string; template: string; status: string }>();
+const allClubs = [...clubs.values()].sort((a, b) => a.name.localeCompare(b.name, 'es'));
+const hasLff = tournaments.some((t) => t.template === 'apertura_clausura');
 ---
-<Admin title={season.name} back="/admin/torneos">
-  {ok && <div class="notice">{ok === 'cerrada' ? 'Temporada cerrada: títulos registrados.' : ok === 'reabierta' ? 'Temporada reabierta.' : 'Listo.'}</div>}
+<Admin title={season.name} back="/admin/temporadas">
+  {ok && <div class="notice">{ok === 'cerrada' ? 'Temporada cerrada: títulos registrados.' : ok === 'reabierta' ? 'Temporada reabierta.' : ok === 'plantilla' ? 'Torneos creados desde la plantilla.' : ok === 'creada' ? 'Temporada creada. Ahora elegí una plantilla.' : 'Listo.'}</div>}
   {error && <div class="notice" style="background:#fde8e6;border-color:#f3b3ad">{error}</div>}
+
+  <h2>Torneos</h2>
+  <div class="card">
+    {tournaments.length === 0 && <p class="empty">Todavía no hay torneos. Creálos con una plantilla más abajo.</p>}
+    {tournaments.map((t) => <a class="row" href={`/admin/torneos/${t.id}`} style="grid-template-columns:1fr auto"><strong>{t.name}</strong><span class="small">{t.status}</span></a>)}
+  </div>
+
+  <h2 id="plantillas">Crear torneos con plantilla</h2>
+  <details class="card" style="padding:.9rem" open={tournaments.length === 0}>
+    <summary><strong>LFF Apertura / Clausura</strong> <span class="small">· 12 clubes · crea Apertura, Clausura (series, semifinales, final), definición de temporada y tablas</span></summary>
+    {hasLff ? <p class="small">Esta temporada ya tiene la estructura LFF.</p> : (
+      <form method="post" action={`/api/admin/temporada/${id}/plantilla`} class="edit-form" style="padding:.6rem 0 0">
+        <input type="hidden" name="template" value="lff" />
+        <p class="small" style="margin:0">Elegí exactamente 12 clubes. Las series del Clausura se arman solas al terminar el Apertura (art. 4).</p>
+        <div class="club-grid">{allClubs.map((c) => <label class="chk"><input type="checkbox" name="club_id" value={c.id} /> {c.name}</label>)}</div>
+        <button type="submit">Crear estructura LFF</button>
+      </form>
+    )}
+  </details>
+  <details class="card" style="padding:.9rem;margin-top:.6rem">
+    <summary><strong>Copa eliminatoria</strong> <span class="small">· 2, 4, 8, 16 o 32 clubes · llaves encadenadas hasta la final</span></summary>
+    <form method="post" action={`/api/admin/temporada/${id}/plantilla`} class="edit-form" style="padding:.6rem 0 0">
+      <input type="hidden" name="template" value="copa" />
+      <label>Nombre <input name="name" placeholder={`Copa ${season.year}`} required /></label>
+      <label>Categoría <input name="category" value="Absoluta" /></label>
+      <p class="small" style="margin:0">Los cruces de la primera ronda se arman en el orden de la lista (1° vs 2°, 3° vs 4°…). Después se pueden forzar desde cada llave.</p>
+      <div class="club-grid">{allClubs.map((c) => <label class="chk"><input type="checkbox" name="club_id" value={c.id} /> {c.name}</label>)}</div>
+      <button type="submit">Crear copa</button>
+    </form>
+  </details>
+  <details class="card" style="padding:.9rem;margin-top:.6rem">
+    <summary><strong>Liga simple</strong> <span class="small">· todos contra todos, una tabla</span></summary>
+    <form method="post" action={`/api/admin/temporada/${id}/plantilla`} class="edit-form" style="padding:.6rem 0 0">
+      <input type="hidden" name="template" value="liga" />
+      <label>Nombre <input name="name" placeholder={`Divisional B ${season.year}`} required /></label>
+      <label>Categoría <input name="category" value="Absoluta" /></label>
+      <label>Ruedas <select name="legs"><option value="1">Una rueda</option><option value="2">Ida y vuelta</option></select></label>
+      <div class="club-grid">{allClubs.map((c) => <label class="chk"><input type="checkbox" name="club_id" value={c.id} /> {c.name}</label>)}</div>
+      <button type="submit">Crear liga</button>
+    </form>
+  </details>
 
   <h2>Definición del campeón (art. 5)</h2>
   <div class="card" style="padding:.9rem">

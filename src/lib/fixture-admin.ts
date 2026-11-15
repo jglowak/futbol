@@ -61,9 +61,14 @@ async function clubShort(id: number): Promise<string> {
   return c?.n ?? String(id);
 }
 
-export async function computeMatchSlug(homeId: number, awayId: number, kickoffIso: string | null, excludeId?: number): Promise<string> {
+export async function computeMatchSlug(homeId: number, awayId: number, kickoffIso: string | null, excludeId?: number, stageId?: number): Promise<string> {
   const [h, a] = await Promise.all([clubShort(homeId), clubShort(awayId)]);
-  return uniqueSlug(matchSlugBase(h, a, kickoffIso), excludeId);
+  let base = matchSlugBase(h, a, kickoffIso);
+  if (!kickoffIso && stageId) {
+    const t = await env.DB.prepare(`SELECT t.slug FROM stages s JOIN tournaments t ON t.id = s.tournament_id WHERE s.id = ?`).bind(stageId).first<{ slug: string }>();
+    if (t) base = `${base}-${t.slug}`;
+  }
+  return uniqueSlug(base, excludeId);
 }
 
 export interface MatchInput {
@@ -113,7 +118,7 @@ export async function findDuplicate(data: MatchInput, excludeId?: number): Promi
 }
 
 export async function createMatch(data: MatchInput, actor: string): Promise<number> {
-  const slug = await computeMatchSlug(data.home_club_id, data.away_club_id, data.kickoff_at);
+  const slug = await computeMatchSlug(data.home_club_id, data.away_club_id, data.kickoff_at, undefined, data.stage_id);
   const row = await env.DB.prepare(
     `INSERT INTO matches (stage_id, round, group_name, home_club_id, away_club_id, kickoff_at, venue, slug)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
@@ -128,7 +133,7 @@ export async function createMatch(data: MatchInput, actor: string): Promise<numb
 export async function updateMatch(id: number, data: MatchInput, actor: string): Promise<void> {
   const before = await env.DB.prepare(`SELECT stage_id, round, group_name, home_club_id, away_club_id, kickoff_at, venue, slug FROM matches WHERE id = ?`).bind(id).first();
   if (!before) return;
-  const slug = await computeMatchSlug(data.home_club_id, data.away_club_id, data.kickoff_at, id);
+  const slug = await computeMatchSlug(data.home_club_id, data.away_club_id, data.kickoff_at, id, data.stage_id);
   await env.DB.batch([
     env.DB.prepare(
       `UPDATE matches SET stage_id = ?, round = ?, group_name = ?, home_club_id = ?, away_club_id = ?, kickoff_at = ?, venue = ?, slug = ?, updated_at = datetime('now') WHERE id = ?`,
@@ -154,8 +159,8 @@ export async function deleteMatch(id: number, actor: string): Promise<void> {
 
 /** Genera todas las fechas de una etapa (por serie si las hay). Solo si la etapa no tiene partidos. */
 export async function generateFixture(stageId: number, legs: 1 | 2, actor: string): Promise<{ ok: true; created: number } | { ok: false; error: string }> {
-  const existing = await env.DB.prepare(`SELECT COUNT(*) AS n FROM matches WHERE stage_id = ?`).bind(stageId).first<{ n: number }>();
-  if ((existing?.n ?? 0) > 0) return { ok: false, error: 'La etapa ya tiene partidos. Borralos antes de generar el fixture.' };
+  const already = await env.DB.prepare(`SELECT COUNT(*) AS n FROM matches WHERE stage_id = ?`).bind(stageId).first<{ n: number }>();
+  if ((already?.n ?? 0) > 0) return { ok: false, error: 'La etapa ya tiene partidos. Borralos antes de generar el fixture.' };
   const { results } = await env.DB.prepare(
     `SELECT sc.club_id, sc.group_name, COALESCE(c.short_name, c.name) AS n FROM stage_clubs sc JOIN clubs c ON c.id = sc.club_id WHERE sc.stage_id = ? ORDER BY sc.group_name, sc.club_id`,
   ).bind(stageId).all<{ club_id: number; group_name: string; n: string }>();
@@ -164,13 +169,16 @@ export async function generateFixture(stageId: number, legs: 1 | 2, actor: strin
   for (const r of results) groups.set(r.group_name, [...(groups.get(r.group_name) ?? []), r]);
 
   const stmts: D1PreparedStatement[] = [];
-  const used = new Set<string>();
+  const { results: existing } = await env.DB.prepare(`SELECT slug FROM matches WHERE slug IS NOT NULL`).all<{ slug: string }>();
+  const used = new Set(existing.map((r) => r.slug));
+  const tslug = (await env.DB.prepare(`SELECT t.slug FROM stages s JOIN tournaments t ON t.id = s.tournament_id WHERE s.id = ?`).bind(stageId).first<{ slug: string }>())?.slug ?? 'fixture';
   for (const [group, clubs] of groups) {
     const names = new Map(clubs.map((c) => [c.club_id, c.n]));
     for (const p of roundRobin(clubs.map((c) => c.club_id), legs)) {
-      let slug = matchSlugBase(names.get(p.home)!, names.get(p.away)!, null);
+      const base = `${matchSlugBase(names.get(p.home)!, names.get(p.away)!, null)}-${tslug}`;
+      let slug = base;
       let i = 2;
-      while (used.has(slug)) slug = `${matchSlugBase(names.get(p.home)!, names.get(p.away)!, null)}-${i++}`;
+      while (used.has(slug)) slug = `${base}-${i++}`;
       used.add(slug);
       stmts.push(
         env.DB.prepare(`INSERT INTO matches (stage_id, round, group_name, home_club_id, away_club_id, slug) VALUES (?, ?, ?, ?, ?, ?)`)

@@ -1,0 +1,32 @@
+---
+import Admin from '../../../layouts/Admin.astro';
+import Crest from '../../../components/Crest.astro';
+import { env } from 'cloudflare:workers';
+import { mediaBucket } from '../../../lib/media';
+const { results: clubs } = await env.DB.prepare(`SELECT id, name, short_name, city, crest_url FROM clubs ORDER BY name`).all<{ id: number; name: string; short_name: string | null; city: string | null; crest_url: string | null }>();
+const error = Astro.url.searchParams.get('error');
+const hasR2 = Boolean(mediaBucket());
+---
+<Admin title="Clubes" back="/admin">
+  {error && <div class="notice" style="background:#fde8e6;border-color:#f3b3ad">{error}</div>}
+  <div class="card">
+    {clubs.map((c) => (
+      <a class="row" href={`/admin/clubes/${c.id}`} style="grid-template-columns:auto 1fr auto">
+        <Crest src={c.crest_url} name={c.name} size={28} />
+        <div><strong>{c.name}</strong>{c.short_name && c.short_name !== c.name && <span class="small"> · {c.short_name}</span>}<br /><span class="small">{c.city ?? ''}</span></div>
+        <span class="small">editar ›</span>
+      </a>
+    ))}
+  </div>
+
+  <h2 id="nuevo">Nuevo club</h2>
+  <form method="post" action="/api/admin/clubes" enctype="multipart/form-data" class="card edit-form" id="club-form">
+    <label>Nombre completo <input name="name" required placeholder="Club Atlético Ejemplo" /></label>
+    <label>Nombre corto (para pantallas chicas) <input name="short_name" placeholder="Ejemplo" /></label>
+    <label>Ciudad <input name="city" /></label>
+    <label>Año de fundación <input type="number" name="founded_year" min="1850" max="2100" /></label>
+    {hasR2 ? <label>Escudo (archivo) <input type="file" name="crest_file" accept="image/*" /></label> : <p class="small">Conectá R2 para subir escudos por archivo.</p>}
+    <label>…o URL del escudo <input name="crest_url" placeholder="https://…" /></label>
+    <button type="submit">Crear club</button>
+  </form>
+</Admin>

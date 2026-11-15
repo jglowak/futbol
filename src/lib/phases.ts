@@ -163,7 +163,7 @@ export async function createTieMatch(
   if (st.home.club === null || st.away.club === null) return { ok: false, error: `Todavía no se conocen los dos participantes (${st.home.reason ?? st.away.reason ?? 'pendiente'})` };
   if (st.conditionMet !== true) return { ok: false, error: 'Todavía no se sabe si esta llave se juega' };
 
-  const slug = await computeMatchSlug(st.home.club, st.away.club, opts.kickoff_at);
+  const slug = await computeMatchSlug(st.home.club, st.away.club, opts.kickoff_at, undefined, tie.stage_id);
   const row = await env.DB.prepare(
     `INSERT INTO matches (stage_id, round, group_name, home_club_id, away_club_id, kickoff_at, venue, slug) VALUES (?, ?, '', ?, ?, ?, ?, ?) RETURNING id`,
   ).bind(tie.stage_id, tie.label, st.home.club, st.away.club, opts.kickoff_at, opts.venue, slug).first<{ id: number }>();

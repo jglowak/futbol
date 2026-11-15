@@ -48,7 +48,7 @@ const back = `/admin/torneos/${id}`;
 const KIND: Record<string, string> = { league: 'Liga', groups: 'Series', knockout: 'Eliminatoria' };
 ---
 <Admin title={tournament.name} back="/admin/torneos">
-  {ok && <div class="notice">{ok.startsWith('creado') ? 'Partido creado.' : ok === 'borrado' ? 'Partido borrado.' : ok.startsWith('fixture') ? `Fixture generado: ${ok.split('-')[1]} partidos.` : 'Listo.'}</div>}
+  {ok && <div class="notice">{ok === 'creado' ? 'Torneo creado.' : ok.startsWith('creado') ? 'Partido creado.' : ok === 'borrado' ? 'Partido borrado.' : ok.startsWith('fixture') ? `Fixture generado: ${ok.split('-')[1]} partidos.` : ok.startsWith('series') ? `Series armadas: ${ok.split('-')[1]} partidos.` : 'Listo.'}</div>}
   <p class="small"><a href={`/admin/temporada/${tournament.season_id}`}>Ver definición y cierre de la temporada ›</a></p>
   {error && <div class="notice" style="background:#fde8e6;border-color:#f3b3ad">{error}</div>}
 
@@ -62,7 +62,12 @@ const KIND: Record<string, string> = { league: 'Liga', groups: 'Series', knockou
         {groups.length > 1 && (
           <p class="small">{groups.map((g) => `${g}: ${stageClubs.filter((c) => c.group_name === g).map((c) => c.short_name ?? c.name).join(', ')}`).join(' · ')}</p>
         )}
-        {rounds.size === 0 ? (
+        {rounds.size === 0 && st.kind === 'groups' && stageClubs.length === 0 && tournament.slug.startsWith('clausura') ? (
+          <div class="card" style="padding:.9rem">
+            <p class="small" style="margin-top:0">Las series se arman con la tabla final del Apertura (art. 4: Serie A = 1°, 4°, 5°, 7°, 9°, 11°; Serie B = 2°, 3°, 6°, 8°, 10°, 12°) y el fixture sale del modelo OFI para seis con las localías invertidas respecto del Apertura.</p>
+            <form method="post" action={`/api/admin/torneo/${id}/series`}><button>Armar series y fixture del Clausura</button></form>
+          </div>
+        ) : rounds.size === 0 ? (
           <div class="card" style="padding:.9rem">
             <p class="small" style="margin-top:0">Esta etapa no tiene partidos. Podés generarlos automáticamente (todos contra todos{groups.length > 1 ? ', por serie' : ''}) y después cargar día y hora de cada uno.</p>
             <form method="post" action={`/api/admin/etapa/${st.id}`} class="status-grid">

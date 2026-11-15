@@ -1,0 +1,28 @@
+---
+import Admin from '../../../layouts/Admin.astro';
+import Crest from '../../../components/Crest.astro';
+import { env } from 'cloudflare:workers';
+import { mediaBucket } from '../../../lib/media';
+const id = Number(Astro.params.id);
+const c = Number.isInteger(id) ? await env.DB.prepare(`SELECT id, slug, name, short_name, city, founded_year, crest_url, crest_source_url FROM clubs WHERE id = ?`).bind(id).first<{ id: number; slug: string; name: string; short_name: string | null; city: string | null; founded_year: number | null; crest_url: string | null; crest_source_url: string | null }>() : null;
+if (!c) return new Response('Club no encontrado', { status: 404 });
+const ok = Astro.url.searchParams.get('ok');
+const error = Astro.url.searchParams.get('error');
+const hasR2 = Boolean(mediaBucket());
+---
+<Admin title={c.name} back="/admin/clubes">
+  {ok && <div class="notice">Guardado.</div>}
+  {error && <div class="notice" style="background:#fde8e6;border-color:#f3b3ad">{error}</div>}
+  <p class="small"><a href={`/club/${c.slug}`} target="_blank" rel="noopener">ver página pública ↗</a></p>
+  <form method="post" action={`/api/admin/club/${c.id}`} enctype="multipart/form-data" class="card edit-form">
+    <div style="text-align:center"><Crest src={c.crest_url} name={c.name} size={72} /></div>
+    <label>Nombre completo <input name="name" required value={c.name} /></label>
+    <label>Nombre corto <input name="short_name" value={c.short_name ?? ''} /></label>
+    <label>Ciudad <input name="city" value={c.city ?? ''} /></label>
+    <label>Año de fundación <input type="number" name="founded_year" min="1850" max="2100" value={c.founded_year ?? ''} /></label>
+    {hasR2 && <label>Reemplazar escudo (archivo) <input type="file" name="crest_file" accept="image/*" /></label>}
+    <label>URL del escudo <input name="crest_url" value={c.crest_url ?? ''} /></label>
+    <button type="submit">Guardar</button>
+  </form>
+  {c.crest_source_url && <p class="small">Escudo original: <a href={c.crest_source_url} target="_blank" rel="noopener">{c.crest_source_url}</a></p>}
+</Admin>

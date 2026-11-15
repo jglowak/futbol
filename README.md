@@ -83,9 +83,21 @@ Panel: `/admin/torneos/[id]` muestra las llaves y permite crear su partido cuand
 muestra campeones, descensos, cupos OFI y el **cierre** (registra títulos en el palmarés; reversible).
 Público: llave en `/torneo/[slug]`, página de club en `/club/[slug]`, zona de descenso en la Tabla Anual.
 
+## Clubes, temporadas y plantillas de torneo
+
+- `/admin/clubes`: alta y edición de clubes (escudo por archivo o URL, guardado en R2).
+- `/admin/temporadas`: alta de temporadas (descensos y cupos OFI) y, dentro de cada una, **plantillas**:
+  - **LFF Apertura/Clausura** (12 clubes): crea Apertura, Clausura (series + semifinales + final), la definición
+    de temporada (finales B/C/D del art. 5) y las cuatro tablas. Al cerrar el Apertura, el botón **Armar series**
+    del Clausura aplica el art. 4 (Serie A = 1°, 4°, 5°, 7°, 9°, 11°) y genera el fixture con el **modelo OFI para
+    seis** (`src/lib/templates-core.ts`, deducido del fixture oficial 2026 y verificado contra él) con localías
+    invertidas respecto del Apertura.
+  - **Copa eliminatoria** (2 a 32 clubes, potencia de 2): llaves encadenadas hasta la final.
+  - **Liga simple**: una tabla, fixture generable.
+
 ## Próximos pasos
 
 - Panel: goleadores y tarjetas por partido (eventos), colaboradores con acceso a un solo partido.
-- Alta de torneos y clubes con plantillas (Apertura/Clausura LFF, copa eliminatoria) para la temporada 2027.
+- Copas con cantidad de clubes que no sea potencia de 2 (byes) e ida y vuelta en llaves.
 - Importar el histórico de clubes y competiciones de AnWP (con limpieza de duplicados).
 - Alineaciones y goles desde la planilla (foto → IA → revisión).

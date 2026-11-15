@@ -1,0 +1,26 @@
+---
+import Admin from '../../../layouts/Admin.astro';
+import { env } from 'cloudflare:workers';
+const { results: seasons } = await env.DB.prepare(`SELECT s.id, s.name, s.year, s.closed_at, (SELECT COUNT(*) FROM tournaments t WHERE t.season_id = s.id) AS tournaments FROM seasons s ORDER BY s.year DESC`).all<{ id: number; name: string; year: number; closed_at: string | null; tournaments: number }>();
+const error = Astro.url.searchParams.get('error');
+const nextYear = (seasons[0]?.year ?? new Date().getFullYear()) + 1;
+---
+<Admin title="Temporadas" back="/admin">
+  {error && <div class="notice" style="background:#fde8e6;border-color:#f3b3ad">{error}</div>}
+  <div class="card">
+    {seasons.map((s) => (
+      <a class="row" href={`/admin/temporada/${s.id}`} style="grid-template-columns:1fr auto">
+        <div><strong>{s.name}</strong><br /><span class="small">{s.tournaments} torneo{s.tournaments === 1 ? '' : 's'}{s.closed_at ? ' · cerrada' : ''}</span></div>
+        <span class="small">›</span>
+      </a>
+    ))}
+  </div>
+  <h2>Nueva temporada</h2>
+  <form method="post" action="/api/admin/temporadas" class="card edit-form">
+    <label>Año <input type="number" name="year" value={nextYear} required /></label>
+    <label>Nombre <input name="name" placeholder={`Temporada ${nextYear}`} /></label>
+    <label>Descensos (últimos de la Tabla Anual) <input type="number" name="relegation" value="2" min="0" max="6" /></label>
+    <label>Cupos a Copa OFI <input type="number" name="ofi_slots" value="2" min="0" max="6" /></label>
+    <button type="submit">Crear temporada</button>
+  </form>
+</Admin>
