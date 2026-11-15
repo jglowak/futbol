@@ -10,7 +10,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const args = Object.fromEntries(process.argv.slice(2).reduce((a, x, i, arr) => (x.startsWith('--') ? [...a, [x.slice(2), arr[i + 1]]] : a), []));
-for (const k of ['clubs', 'competitions', 'standings', 'stadiums', 'out']) if (!args[k]) { console.error(`Falta --${k}`); process.exit(1); }
+for (const k of ['clubs', 'competitions', 'standings', 'stadiums', 'out', 'matches']) if (!args[k]) { console.error(`Falta --${k}`); process.exit(1); }
 
 const unescape = (s) => s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#0?39;/g, "'").replace(/&#8217;/g, '’');
 function items(path) {
@@ -31,6 +31,7 @@ function items(path) {
   return out;
 }
 const q = (v) => (v === null || v === undefined || v === '' ? 'NULL' : `'${String(v).replace(/'/g, "''")}'`);
+const qs = (v) => `'${String(v ?? '').replace(/'/g, "''")}'`; // cadena, '' se conserva (group_name, round)
 const slugify = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 const norm = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
 const STOP = new Set(['club', 'atletico', 'deportivo', 'social', 'y', 'de', 'futbol', 'c', 'a', 'd', 's', 'ca', 'cd', 'csd', 'csyd', 'institucion', 'asociacion']);
@@ -118,6 +119,7 @@ const years = new Set(mains.map(yearOf));
 for (const y of [...years].sort()) P(`INSERT OR IGNORE INTO seasons (slug, name, year) VALUES ('temporada-${y}', 'Temporada ${y}', ${y});`);
 
 // Clubes
+const usedSlugsGlobal = new Set();
 const usedSlugs = new Set(['19-de-abril', 'boquita', 'candil', 'club-atletico-avenida', 'club-atletico-espana', 'club-atletico-florida', 'club-atletico-mendoza', 'club-social-y-deportivo-alianza', 'la-vascongada', 'nacional-de-florida', 'quilmes-fl', 'river-plate-fl']);
 for (const c of canonClubs) {
   if (EXISTING.has(c.legacy_id)) {
@@ -155,7 +157,7 @@ for (const main of mains) {
     stageKeyOf.set(st.id, { S, groups });
     for (const g of groups) {
       const gname = groups.length > 1 ? g.title : '';
-      for (const cid of g.clubs ?? []) P(`INSERT OR IGNORE INTO stage_clubs (stage_id, club_id, group_name) SELECT ${S}, ${CLUB(cid)}, ${q(gname)} WHERE ${CLUB(cid)} IS NOT NULL;`);
+      for (const cid of g.clubs ?? []) P(`INSERT OR IGNORE INTO stage_clubs (stage_id, club_id, group_name) SELECT ${S}, ${CLUB(cid)}, ${qs(gname)} WHERE ${CLUB(cid)} IS NOT NULL;`);
     }
   });
 }
@@ -186,10 +188,10 @@ for (const s of standings) {
   const cfg = JSON.stringify({ tiebreakers: rules, snapshot: true, source: 'anwp', note: 'Tabla final importada de AnWP; sin partidos cargados.' });
   P(`INSERT OR IGNORE INTO standing_tables (season_id, slug, name, config, legacy_id) SELECT id, ${q(tslug)}, ${q(s.title)}, ${q(cfg)}, ${s.id} FROM seasons WHERE year = ${y};`);
   const TB = `(SELECT id FROM standing_tables WHERE legacy_id = ${s.id})`;
-  P(`INSERT OR IGNORE INTO standing_table_sources (table_id, stage_id, group_name) SELECT ${TB}, ${key.S}, ${q(gname)};`);
+  P(`INSERT OR IGNORE INTO standing_table_sources (table_id, stage_id, group_name) SELECT ${TB}, ${key.S}, ${qs(gname)};`);
   for (const r of rows) {
     const cid = Number(r.club_id);
-    P(`INSERT OR REPLACE INTO stage_clubs (stage_id, club_id, group_name) SELECT ${key.S}, ${CLUB(cid)}, ${q(gname)} WHERE ${CLUB(cid)} IS NOT NULL;`);
+    P(`INSERT OR REPLACE INTO stage_clubs (stage_id, club_id, group_name) SELECT ${key.S}, ${CLUB(cid)}, ${qs(gname)} WHERE ${CLUB(cid)} IS NOT NULL;`);
     P(`INSERT INTO standing_adjustments (table_id, club_id, points, goals_for, goals_against, played, won, drawn, lost, reason) SELECT ${TB}, ${CLUB(cid)}, ${Number(r.points) || 0}, ${Number(r.gf) || 0}, ${Number(r.ga) || 0}, ${Number(r.played) || 0}, ${Number(r.won) || 0}, ${Number(r.drawn) || 0}, ${Number(r.lost) || 0}, 'Tabla final importada de AnWP' WHERE ${CLUB(cid)} IS NOT NULL AND NOT EXISTS (SELECT 1 FROM standing_adjustments WHERE table_id = ${TB} AND club_id = ${CLUB(cid)});`);
     rowsCount++;
   }
@@ -197,7 +199,55 @@ for (const s of standings) {
   const top = rows.find((r) => Number(r.place) === 1) ?? rows[0];
   report.push(`| ${main.title} | ${s.title} | ${top.club_title} | ${top.points} | ${top.played} |`);
 }
-P(`-- ${canonClubs.length} clubes, ${mains.length} torneos, ${tablesCount} tablas, ${rowsCount} filas.`);
+// ---------- Partidos (tabla wp_anwpfl_matches, ya parseada a JSON) ----------
+const matches = JSON.parse(readFileSync(args.matches, 'utf8'));
+const stadiumTitle = new Map(stadiums.map((st) => [st.id, st.city && !norm(st.title).includes(norm(st.city)) ? `${st.title} (${st.city})` : st.title]));
+const toUtc = (local) => (!local || local.startsWith('0000') ? null : new Date(local.replace(' ', 'T') + '-03:00').toISOString());
+let matchCount = 0, eventCount = 0;
+const usedMatchSlugs = new Set();
+for (const m of matches) {
+  const compId = Number(m.competition_id);
+  const key = stageKeyOf.get(compId);
+  if (!key) continue; // competiciones de 2026 ya cargadas u omitidas
+  const grp = key.groups.find((g) => Number(g.id) === Number(m.group_id));
+  const gname = key.groups.length > 1 && grp ? grp.title : '';
+  const finished = m.finished === '1';
+  const kickoff = toUtc(m.kickoff);
+  const round = Number(m.match_week) > 0 ? `Fecha ${Number(m.match_week)}` : '';
+  // Penales: eventos penalty_shootout con scored = 'yes'
+  let events = [];
+  try { events = m.match_events ? JSON.parse(m.match_events) : []; } catch { events = []; }
+  const pens = { [m.home_club]: 0, [m.away_club]: 0 };
+  let hasPens = false;
+  for (const e of events) if (e.type === 'penalty_shootout') { hasPens = true; if (e.scored === 'yes') pens[e.club] = (pens[e.club] ?? 0) + 1; }
+  const hNames = canonClubs.find((c) => c.legacy_id === canonicalOf.get(Number(m.home_club)))?.name ?? m.home_club;
+  const aNames = canonClubs.find((c) => c.legacy_id === canonicalOf.get(Number(m.away_club)))?.name ?? m.away_club;
+  const base = kickoff ? `${slugify(hNames)}-vs-${slugify(aNames)}-${(() => { const d = new Date(new Date(kickoff).getTime() - 3 * 3600_000); return `${String(d.getUTCDate()).padStart(2, '0')}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${d.getUTCFullYear()}`; })()}` : `${slugify(hNames)}-vs-${slugify(aNames)}-${m.match_id}`;
+  let slug = base; let i = 2;
+  while (usedMatchSlugs.has(slug) || usedSlugsGlobal.has(slug)) slug = `${base}-${i++}`;
+  usedMatchSlugs.add(slug);
+  const venue = stadiumTitle.get(Number(m.stadium_id)) ?? null;
+  P(`INSERT OR IGNORE INTO matches (stage_id, round, group_name, home_club_id, away_club_id, kickoff_at, venue, status, home_goals, away_goals, home_pens, away_pens, finished_at, slug, legacy_id) SELECT ${key.S}, ${qs(round)}, ${qs(gname)}, ${CLUB(m.home_club)}, ${CLUB(m.away_club)}, ${q(kickoff)}, ${q(venue)}, ${q(finished ? 'finished' : 'scheduled')}, ${finished ? Number(m.home_goals) : 'NULL'}, ${finished ? Number(m.away_goals) : 'NULL'}, ${hasPens ? pens[m.home_club] : 'NULL'}, ${hasPens ? pens[m.away_club] : 'NULL'}, ${q(finished ? kickoff : null)}, ${q(slug)}, ${Number(m.match_id)} WHERE ${CLUB(m.home_club)} IS NOT NULL AND ${CLUB(m.away_club)} IS NOT NULL AND NOT EXISTS (SELECT 1 FROM matches WHERE slug = ${q(slug)} AND legacy_id IS NOT ${Number(m.match_id)});`);
+  matchCount++;
+  const M = `(SELECT id FROM matches WHERE legacy_id = ${Number(m.match_id)})`;
+  for (const e of events) {
+    if (!/^\d+$/.test(String(e.club ?? ''))) continue; // evento sin club: no se puede asignar
+    let type = null;
+    if (e.type === 'goal') type = e.ownGoal === 'yes' || e.ownGoal === true ? 'own_goal' : e.fromPenalty === 'yes' || e.fromPenalty === true ? 'penalty_goal' : 'goal';
+    else if (e.type === 'card') type = e.card === 'r' || e.card === 'yr' ? 'red_card' : 'yellow_card';
+    else if (e.type === 'substitute') type = 'sub';
+    if (!type) continue;
+    const minute = Number(e.minute) || null;
+    const pref = e.player ? String(e.player) : null;
+    P(`INSERT OR IGNORE INTO match_events (match_id, club_id, type, minute, legacy_player_ref, legacy_event_id, created_by) SELECT ${M}, ${CLUB(e.club)}, ${q(type)}, ${minute ?? 'NULL'}, ${q(pref)}, ${q(`${m.match_id}:${e.id}`)}, 'anwp' WHERE ${M} IS NOT NULL AND ${CLUB(e.club)} IS NOT NULL;`);
+    eventCount++;
+  }
+}
+// Las tablas históricas ya tienen sus partidos: dejan de ser "congeladas".
+P(`DELETE FROM standing_adjustments WHERE reason = 'Tabla final importada de AnWP' AND table_id IN (SELECT st.id FROM standing_tables st JOIN standing_table_sources src ON src.table_id = st.id JOIN matches m ON m.stage_id = src.stage_id AND m.status = 'finished' WHERE st.legacy_id IS NOT NULL);`);
+P(`UPDATE standing_tables SET config = json_remove(config, '$.snapshot', '$.note') WHERE legacy_id IS NOT NULL AND id IN (SELECT src.table_id FROM standing_table_sources src JOIN matches m ON m.stage_id = src.stage_id AND m.status = 'finished');`);
+P(`-- ${canonClubs.length} clubes, ${mains.length} torneos, ${tablesCount} tablas, ${rowsCount} filas, ${matchCount} partidos, ${eventCount} eventos.`);
+report.push('', `## Partidos: ${matchCount} importados (${eventCount} eventos: goles, tarjetas, cambios).`);
 writeFileSync(args.out, sql.join('\n') + '\n');
 if (args.report) writeFileSync(args.report, report.join('\n') + '\n');
-console.error(`OK: ${canonClubs.length} clubes (${merges.length} unificaciones), ${mains.length} torneos, ${tablesCount} tablas, ${rowsCount} filas, ${sql.length} sentencias.`);
+console.error(`OK: ${canonClubs.length} clubes, ${matchCount} partidos, ${eventCount} eventos; ${mains.length} torneos (${merges.length} unificaciones), ${tablesCount} tablas, ${rowsCount} filas, ${sql.length} sentencias.`);

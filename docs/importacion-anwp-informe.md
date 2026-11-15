@@ -99,3 +99,5 @@ Clubes: 303 en AnWP → 271 unificados.
 | Este 2026 | Este 2026 Juveniles Serie B | Lavalleja Juv | 16 | 6 |
 | Este 2026 | Este 2026 Juveniles Serie C | Cerro Largo Juv | 12 | 4 |
 | Divisional B Florida 2026 | Divisional B Florida 2026 | Barrio Viña | 28 | 12 |
+
+## Partidos: 976 importados (3106 eventos: goles, tarjetas, cambios).

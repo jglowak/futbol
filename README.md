@@ -102,12 +102,14 @@ WordPress: clubes unificados (`club_legacy_ids` guarda todos los IDs viejos), ca
 competiciones → torneos/etapas (`source = 'anwp'`) y tablas finales como **tablas históricas** (totales en
 `standing_adjustments`, con `snapshot: true` en la config). Se ejecuta desde el panel: Herramientas →
 "Importar histórico de AnWP". `docs/importacion-anwp-informe.md` lista las unificaciones y los probables campeones.
-Los partidos históricos con resultado no vienen en el export de WordPress: se importarán desde la tabla
-`wp_anwpfl_matches` cuando esté disponible (al hacerlo, borrar los ajustes "Tabla final importada de AnWP" de esas tablas).
+Los partidos con resultado vienen de la tabla `wp_anwpfl_matches` (volcado SQL parseado a `data/anwp/matches.json`):
+1.054 partidos y 3.106 eventos (goles, tarjetas, cambios; `legacy_player_ref` guarda el jugador de AnWP para
+enlazarlo cuando se importen los jugadores). Con los partidos cargados, las tablas históricas dejan de ser
+congeladas: las 65 se verificaron idénticas a las de AnWP.
 
 ## Próximos pasos
 
 - Panel: goleadores y tarjetas por partido (eventos), colaboradores con acceso a un solo partido.
 - Copas con cantidad de clubes que no sea potencia de 2 (byes) e ida y vuelta en llaves.
-- Partidos históricos con resultado (tabla `wp_anwpfl_matches`) y palmarés confirmado por Jorge.
+- Jugadores (export de AnWP) para goleadores históricos; palmarés confirmado por Jorge.
 - Alineaciones y goles desde la planilla (foto → IA → revisión).
