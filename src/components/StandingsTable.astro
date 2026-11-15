@@ -1,9 +1,9 @@
 ---
 import type { StandingRow } from '../lib/standings';
 import Crest from './Crest.astro';
-interface Props { rows: StandingRow[]; relegation?: number }
-const { rows, relegation = 0 } = Astro.props;
-const notes = rows.filter((r) => r.adjustmentReasons.length > 0);
+interface Props { rows: StandingRow[]; relegation?: number; snapshot?: boolean }
+const { rows, relegation = 0, snapshot = false } = Astro.props;
+const notes = snapshot ? [] : rows.filter((r) => r.adjustmentReasons.length > 0);
 ---
 <div class="card">
   <table>
@@ -14,7 +14,7 @@ const notes = rows.filter((r) => r.adjustmentReasons.length > 0);
       {rows.map((r) => (
         <tr class:list={{ relegation: relegation > 0 && r.position > rows.length - relegation }}>
           <td>{r.position}</td>
-          <td class="club"><Crest src={r.crestUrl} name={r.name} /> {r.slug ? <a class="club-link" href={`/club/${r.slug}`}><span class="full">{r.name}</span><span class="short">{r.shortName ?? r.name}</span></a> : <><span class="full">{r.name}</span><span class="short">{r.shortName ?? r.name}</span></>}{r.pointsAdjustment !== 0 && <sup> *</sup>}</td>
+          <td class="club"><Crest src={r.crestUrl} name={r.name} /> {r.slug ? <a class="club-link" href={`/club/${r.slug}`}><span class="full">{r.name}</span><span class="short">{r.shortName ?? r.name}</span></a> : <><span class="full">{r.name}</span><span class="short">{r.shortName ?? r.name}</span></>}{!snapshot && r.pointsAdjustment !== 0 && <sup> *</sup>}</td>
           <td>{r.played}</td><td>{r.won}</td><td>{r.drawn}</td><td>{r.lost}</td>
           <td>{r.goalsFor}</td><td>{r.goalsAgainst}</td>
           <td>{r.goalDifference > 0 ? `+${r.goalDifference}` : r.goalDifference}</td>
@@ -24,6 +24,7 @@ const notes = rows.filter((r) => r.adjustmentReasons.length > 0);
     </tbody>
   </table>
 </div>
+{snapshot && <p class="note">Tabla final importada del sitio anterior; los partidos de este torneo no están cargados.</p>}
 {notes.map((r) => (
   <p class="note">* {r.name}: {r.adjustmentReasons.join('; ')} ({r.pointsAdjustment > 0 ? '+' : ''}{r.pointsAdjustment} pts)</p>
 ))}

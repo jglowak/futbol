@@ -1,0 +1,16 @@
+---
+import Base from '../layouts/Base.astro';
+import { listTournaments } from '../lib/db';
+const all = await listTournaments();
+const bySeason = new Map<string, typeof all>();
+for (const t of all) bySeason.set(t.season_name, [...(bySeason.get(t.season_name) ?? []), t]);
+---
+<Base title="Torneos · Fútbol Florida" description="Todos los torneos: Liga de Florida, OFI y más.">
+  <h1>Torneos</h1>
+  {[...bySeason.entries()].map(([season, list]) => (
+    <>
+      <h2>{season}</h2>
+      <ul class="links">{list.map((t) => <li><a href={`/torneo/${t.slug}`}>{t.name}{t.category !== 'Absoluta' ? ` · ${t.category}` : ''}</a></li>)}</ul>
+    </>
+  ))}
+</Base>

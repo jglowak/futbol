@@ -95,9 +95,19 @@ Público: llave en `/torneo/[slug]`, página de club en `/club/[slug]`, zona de 
   - **Copa eliminatoria** (2 a 32 clubes, potencia de 2): llaves encadenadas hasta la final.
   - **Liga simple**: una tabla, fixture generable.
 
+## Histórico de AnWP
+
+`scripts/import-anwp-history.mjs` genera `db/import-history.sql` (idempotente) a partir de los exports XML de
+WordPress: clubes unificados (`club_legacy_ids` guarda todos los IDs viejos), cancha habitual desde los estadios,
+competiciones → torneos/etapas (`source = 'anwp'`) y tablas finales como **tablas históricas** (totales en
+`standing_adjustments`, con `snapshot: true` en la config). Se ejecuta desde el panel: Herramientas →
+"Importar histórico de AnWP". `docs/importacion-anwp-informe.md` lista las unificaciones y los probables campeones.
+Los partidos históricos con resultado no vienen en el export de WordPress: se importarán desde la tabla
+`wp_anwpfl_matches` cuando esté disponible (al hacerlo, borrar los ajustes "Tabla final importada de AnWP" de esas tablas).
+
 ## Próximos pasos
 
 - Panel: goleadores y tarjetas por partido (eventos), colaboradores con acceso a un solo partido.
 - Copas con cantidad de clubes que no sea potencia de 2 (byes) e ida y vuelta en llaves.
-- Importar el histórico de clubes y competiciones de AnWP (con limpieza de duplicados).
+- Partidos históricos con resultado (tabla `wp_anwpfl_matches`) y palmarés confirmado por Jorge.
 - Alineaciones y goles desde la planilla (foto → IA → revisión).

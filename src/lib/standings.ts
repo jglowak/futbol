@@ -29,6 +29,9 @@ export interface AdjustmentInput {
   goalsFor?: number;
   goalsAgainst?: number;
   played?: number;
+  won?: number;
+  drawn?: number;
+  lost?: number;
   reason: string;
 }
 
@@ -135,6 +138,9 @@ export function computeStandings(
     row.goalsFor += a.goalsFor ?? 0;
     row.goalsAgainst += a.goalsAgainst ?? 0;
     row.played += a.played ?? 0;
+    row.won += a.won ?? 0;
+    row.drawn += a.drawn ?? 0;
+    row.lost += a.lost ?? 0;
     row.adjustmentReasons.push(a.reason);
   }
 

@@ -4,7 +4,7 @@ import MatchList from '../components/MatchList.astro';
 import LiveBlock from '../components/LiveBlock.astro';
 import { getLiveMatches, getStripMatches, listTournaments } from '../lib/db';
 
-const [{ recent, upcoming }, tournaments, live] = await Promise.all([getStripMatches(), listTournaments(), getLiveMatches()]);
+const [{ recent, upcoming }, tournaments, live] = await Promise.all([getStripMatches(), listTournaments({ currentSeasonOnly: true }), getLiveMatches()]);
 ---
 <Base title="Fútbol — resultados y tablas">
   <div data-refresh="/partial/en-vivo" data-refresh-every="15000"><LiveBlock matches={live} /></div>
@@ -15,6 +15,7 @@ const [{ recent, upcoming }, tournaments, live] = await Promise.all([getStripMat
   <MatchList matches={upcoming} showTournament />
   <h2>Torneos</h2>
   <ul class="links">
-    {tournaments.map((t) => <li><a href={`/torneo/${t.slug}`}>{t.name} · {t.season_name}</a></li>)}
+    {tournaments.map((t) => <li><a href={`/torneo/${t.slug}`}>{t.name}</a></li>)}
+    <li><a href="/torneos">Todos los torneos ›</a></li>
   </ul>
 </Base>

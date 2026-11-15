@@ -16,6 +16,6 @@ if (slug?.startsWith('anual')) {
 ---
 <Base title={`${computed.table.name} — Fútbol`}>
   <h1>{computed.table.name}</h1>
-  <StandingsTable rows={computed.rows} relegation={relegation} />
+  <StandingsTable rows={computed.rows} relegation={relegation} snapshot={computed.table.config.includes('"snapshot":true')} />
   {relegation > 0 && <p class="note">Los últimos {relegation} descienden a la Divisional B.</p>}
 </Base>

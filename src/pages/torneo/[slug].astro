@@ -51,7 +51,7 @@ for (const m of matches) {
   {computed.map(({ table, rows }) => (
     <>
       <h2>{table.name}</h2>
-      <StandingsTable rows={rows} relegation={isAnual(table.slug) ? relegation : 0} />
+      <StandingsTable rows={rows} relegation={isAnual(table.slug) ? relegation : 0} snapshot={table.config.includes('"snapshot":true')} />
       {isAnual(table.slug) && relegation > 0 && <p class="note">Los últimos {relegation} descienden a la Divisional B. La Anual suma Apertura + series del Clausura (sin semifinales).</p>}
     </>
   ))}

@@ -15,6 +15,7 @@ export interface TournamentRow {
   category: string;
   status: string;
   season_name: string;
+  season_year?: number;
 }
 
 export interface MatchRow {
@@ -65,10 +66,11 @@ const MATCH_SELECT = `
   JOIN tournaments t ON t.id = s.tournament_id
 `;
 
-export async function listTournaments(): Promise<TournamentRow[]> {
+export async function listTournaments(opts: { currentSeasonOnly?: boolean } = {}): Promise<TournamentRow[]> {
+  const where = opts.currentSeasonOnly ? `WHERE s.year = (SELECT MAX(year) FROM seasons WHERE closed_at IS NULL) AND COALESCE(t.source, '') <> 'anwp'` : '';
   const { results } = await env.DB.prepare(
-    `SELECT t.id, t.slug, t.name, t.category, t.status, s.name AS season_name
-     FROM tournaments t JOIN seasons s ON s.id = t.season_id
+    `SELECT t.id, t.slug, t.name, t.category, t.status, s.name AS season_name, s.year AS season_year
+     FROM tournaments t JOIN seasons s ON s.id = t.season_id ${where}
      ORDER BY s.year DESC, t.id DESC`,
   ).all<TournamentRow>();
   return results;
@@ -167,7 +169,7 @@ export async function getComputedTable(slug: string): Promise<ComputedTable | nu
       .all<MatchInput>(),
     env.DB.prepare(
       `SELECT club_id AS clubId, points, goals_for AS goalsFor,
-              goals_against AS goalsAgainst, played, reason
+              goals_against AS goalsAgainst, played, won, drawn, lost, reason
        FROM standing_adjustments WHERE table_id = ?`,
     )
       .bind(table.id)
