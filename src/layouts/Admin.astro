@@ -20,7 +20,7 @@ const user = Astro.locals.session?.user;
       header { position:sticky; top:0; z-index:5; background:var(--accent); color:#fff; display:flex; align-items:center; gap:.6rem; padding:.7rem .9rem; padding-top:calc(.7rem + env(safe-area-inset-top)); }
       header a { color:#fff; text-decoration:none; font-weight:700; }
       header .title { flex:1; font-weight:700; }
-      header .user { font-size:.75rem; opacity:.85; }
+      header .user { font-size:.72rem; opacity:.85; max-width:9rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
       main { max-width:640px; margin:0 auto; padding:.9rem; }
       h2 { font-size:.85rem; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:1.2rem 0 .5rem; }
       .card { background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
@@ -93,6 +93,7 @@ const user = Astro.locals.session?.user;
     <header>
       {back ? <a href={back} aria-label="Volver">‹</a> : null}
       <a class="title" href="/admin">{title}</a>
+      {user && <span class="user">{user}</span>}
       {user && <a href="/admin" style="font-size:.8rem;font-weight:400">Inicio</a>}
       {user && <a href="/admin/torneos" style="font-size:.8rem;font-weight:400">Torneos</a>}
       {user && <a href="/admin/logout" style="font-size:.75rem;font-weight:400">salir</a>}

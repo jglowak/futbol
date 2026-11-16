@@ -1,5 +1,7 @@
 ---
-import { COOKIE } from '../../lib/auth';
+import { COOKIE, getSession } from '../../lib/auth';
+const session = await getSession(Astro.request);
 Astro.cookies.delete(COOKIE, { path: '/' });
-return Astro.redirect('/admin/login', 303);
+// Con Cloudflare Access la sesión la maneja Access: hay que cerrarla ahí, si no vuelve a entrar solo.
+return Astro.redirect(session?.via === 'access' ? '/cdn-cgi/access/logout' : '/admin/login', 303);
 ---
