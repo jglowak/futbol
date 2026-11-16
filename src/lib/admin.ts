@@ -163,15 +163,16 @@ export async function adminLists(): Promise<AdminLists> {
   const dayEnd = new Date(Date.UTC(uy.getUTCFullYear(), uy.getUTCMonth(), uy.getUTCDate() + 1, 3)).toISOString();
 
   const [live, today, upcoming, recent] = await Promise.all([
-    env.DB.prepare(`${ADMIN_MATCH_SELECT} WHERE m.status = 'live' ORDER BY m.kickoff_at`).all<MatchRow>(),
+    env.DB.prepare(`${ADMIN_MATCH_SELECT} WHERE m.status = 'live' AND COALESCE(t.source,'') <> 'anwp' ORDER BY m.kickoff_at`).all<MatchRow>(),
     env.DB.prepare(
-      `${ADMIN_MATCH_SELECT} WHERE m.status <> 'live' AND m.kickoff_at >= ? AND m.kickoff_at < ? ORDER BY m.kickoff_at`,
+      `${ADMIN_MATCH_SELECT} WHERE m.status <> 'live' AND COALESCE(t.source,'') <> 'anwp' AND m.kickoff_at >= ? AND m.kickoff_at < ? ORDER BY m.kickoff_at`,
     )
       .bind(dayStart, dayEnd)
       .all<MatchRow>(),
     // Próximos: primero los que tienen fecha futura, después los programados sin fecha ("A confirmar").
     env.DB.prepare(
-      `${ADMIN_MATCH_SELECT} WHERE m.status IN ('scheduled','postponed') AND (m.kickoff_at >= ? OR m.kickoff_at IS NULL)
+      `${ADMIN_MATCH_SELECT} WHERE m.status IN ('scheduled','postponed') AND COALESCE(t.source,'') <> 'anwp'
+         AND (m.kickoff_at >= ? OR m.kickoff_at IS NULL)
        ORDER BY (m.kickoff_at IS NULL), m.kickoff_at, m.round, m.id LIMIT 12`,
     )
       .bind(dayEnd)
