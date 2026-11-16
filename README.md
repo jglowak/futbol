@@ -59,6 +59,7 @@ Acceso (en este orden):
    cookie firmada por 30 días (`ADMIN_SESSION_SECRET` opcional para firmar con otro valor).
 
 Sin ninguna de las dos, el panel queda cerrado. En local: `.dev.vars` con `ADMIN_PASSWORD=...`.
+En producción está activo **Access** (código por mail, sesión de 7 días); "Salir" cierra también la sesión de Access.
 Las páginas públicas se actualizan en ~20 s (caché de borde).
 
 ## Fixture desde el panel
@@ -109,6 +110,15 @@ congeladas: las 65 se verificaron idénticas a las de AnWP.
 
 ## Próximos pasos
 
+Estado (nov 2026): todo lo de arriba está en producción. Jorge está empezando a probar el panel.
+Antes de que cargue datos reales, limpiar las pruebas con `scripts/reset-resultados.sql`.
+
+- Mostrar tablas y partidos en el WordPress actual (futbolflorida.com): shortcode que trae los
+  bloques (`/partial/...`) con caché corta. Cuando el sitio pase a Astro + EmDash (notas), este
+  sistema sigue como app separada y se integra por los mismos bloques.
+- Diseño: portada y UX pública y del panel (aún sin trabajar).
+- Títulos históricos: confirmar con Jorge la lista de `docs/importacion-anwp-informe.md`.
+- Torneos de verano con formato propio, cuando se conozca el formato.
 - Panel: goleadores y tarjetas por partido (eventos), colaboradores con acceso a un solo partido.
 - Copas con cantidad de clubes que no sea potencia de 2 (byes) e ida y vuelta en llaves.
 - Jugadores (export de AnWP) para goleadores históricos; palmarés confirmado por Jorge.
