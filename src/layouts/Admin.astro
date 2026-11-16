@@ -92,8 +92,8 @@ const user = Astro.locals.session?.user;
   <body>
     <header>
       {back ? <a href={back} aria-label="Volver">‹</a> : null}
-      <span class="title">{title}</span>
-      {user && <span class="user">{user}</span>}
+      <a class="title" href="/admin">{title}</a>
+      {user && <a href="/admin" style="font-size:.8rem;font-weight:400">Inicio</a>}
       {user && <a href="/admin/torneos" style="font-size:.8rem;font-weight:400">Torneos</a>}
       {user && <a href="/admin/logout" style="font-size:.75rem;font-weight:400">salir</a>}
     </header>

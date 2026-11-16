@@ -169,11 +169,15 @@ export async function adminLists(): Promise<AdminLists> {
     )
       .bind(dayStart, dayEnd)
       .all<MatchRow>(),
-    env.DB.prepare(`${ADMIN_MATCH_SELECT} WHERE m.status IN ('scheduled','postponed') AND m.kickoff_at >= ? ORDER BY m.kickoff_at LIMIT 12`)
+    // Próximos: primero los que tienen fecha futura, después los programados sin fecha ("A confirmar").
+    env.DB.prepare(
+      `${ADMIN_MATCH_SELECT} WHERE m.status IN ('scheduled','postponed') AND (m.kickoff_at >= ? OR m.kickoff_at IS NULL)
+       ORDER BY (m.kickoff_at IS NULL), m.kickoff_at, m.round, m.id LIMIT 12`,
+    )
       .bind(dayEnd)
       .all<MatchRow>(),
-    // Finalizados que no son de hoy (los de hoy ya aparecen en "Hoy"), los más recientes primero.
-    env.DB.prepare(`${ADMIN_MATCH_SELECT} WHERE m.status = 'finished' AND NOT (m.kickoff_at >= ? AND m.kickoff_at < ?) ORDER BY COALESCE(m.finished_at, m.kickoff_at) DESC LIMIT 12`)
+    // Finalizados que no son de hoy (los de hoy ya aparecen en "Hoy"), ordenados por fecha del partido.
+    env.DB.prepare(`${ADMIN_MATCH_SELECT} WHERE m.status = 'finished' AND COALESCE(t.source,'') <> 'anwp' AND NOT (m.kickoff_at >= ? AND m.kickoff_at < ?) ORDER BY COALESCE(m.kickoff_at, m.finished_at) DESC, m.finished_at DESC LIMIT 12`)
       .bind(dayStart, dayEnd)
       .all<MatchRow>(),
   ]);
