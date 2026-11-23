@@ -11,16 +11,17 @@ const { slug } = Astro.params;
 const tournament = slug ? await getTournament(slug) : null;
 if (!tournament) return new Response('Torneo no encontrado', { status: 404 });
 
-const [matches, tables] = await Promise.all([
+// Todo en paralelo: D1 está lejos y cada consulta en serie suma un viaje de ida y vuelta.
+const [matches, computed, sc, stageRows] = await Promise.all([
   getTournamentMatches(tournament.id),
-  getTablesForTournament(tournament.id),
+  getTablesForTournament(tournament.id)
+    .then((tables) => Promise.all(tables.map((t) => getComputedTable(t.slug))))
+    .then((all) => all.filter((x) => x !== null)),
+  // Llaves de este torneo (si las tiene) y resumen de la temporada
+  tournament.season_id ? loadSeasonContext(tournament.season_id) : Promise.resolve(null),
+  env.DB.prepare(`SELECT id FROM stages WHERE tournament_id = ?`).bind(tournament.id).all<{ id: number }>(),
 ]);
-const computed = (await Promise.all(tables.map((t) => getComputedTable(t.slug)))).filter((x) => x !== null);
-
-// Llaves de este torneo (si las tiene) y resumen de la temporada
-const seasonRow = await env.DB.prepare(`SELECT season_id FROM tournaments WHERE id = ?`).bind(tournament.id).first<{ season_id: number }>();
-const sc = seasonRow ? await loadSeasonContext(seasonRow.season_id) : null;
-const stageIds = new Set((await env.DB.prepare(`SELECT id FROM stages WHERE tournament_id = ?`).bind(tournament.id).all<{ id: number }>()).results.map((r) => r.id));
+const stageIds = new Set(stageRows.results.map((r) => r.id));
 const tieStates = (sc?.ties ?? []).filter((t) => stageIds.has(t.stage_id)).map((t) => sc!.states.get(t.code)!);
 const tieNotes = new Map((sc?.ties ?? []).map((t) => [t.code, t.note]));
 const matchSlugs = new Map(matches.map((m) => [m.id, m.slug ?? String(m.id)]));

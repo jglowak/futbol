@@ -89,16 +89,18 @@ function tablesReferenced(ties: TieDef[], cfg?: SeasonDefinitionConfig): Set<str
 }
 
 async function loadTable(slug: string): Promise<TableInfo | null> {
-  const computed = await getComputedTable(slug);
-  if (!computed) return null;
-  const [pending, raw] = await Promise.all([
+  // Las tres consultas van en paralelo (por slug) para no sumar viajes a D1 uno tras otro.
+  const [computed, pending, raw] = await Promise.all([
+    getComputedTable(slug),
     env.DB.prepare(
       `SELECT COUNT(*) AS n FROM matches m
        JOIN standing_table_sources src ON src.stage_id = m.stage_id AND (src.group_name = '' OR src.group_name = m.group_name)
-       WHERE src.table_id = ? AND m.status <> 'finished' AND m.status <> 'cancelled'`,
-    ).bind(computed.table.id).first<{ n: number }>(),
-    env.DB.prepare(`SELECT position_overrides FROM standing_tables WHERE id = ?`).bind(computed.table.id).first<{ position_overrides: string }>(),
+       JOIN standing_tables st ON st.id = src.table_id
+       WHERE st.slug = ? AND m.status <> 'finished' AND m.status <> 'cancelled'`,
+    ).bind(slug).first<{ n: number }>(),
+    env.DB.prepare(`SELECT position_overrides FROM standing_tables WHERE slug = ?`).bind(slug).first<{ position_overrides: string }>(),
   ]);
+  if (!computed) return null;
   return {
     name: computed.table.name,
     rows: computed.rows,
@@ -117,28 +119,30 @@ export interface SeasonContext {
 }
 
 export async function loadSeasonContext(seasonId: number): Promise<SeasonContext | null> {
-  const season = await getSeason(seasonId);
+  // Todo lo que no depende de lo demás se pide a la vez (D1 está lejos: cada viaje en serie suma latencia).
+  const [season, ties, tieMatchRows, clubsRes] = await Promise.all([
+    getSeason(seasonId),
+    tiesOfSeason(seasonId),
+    env.DB.prepare(
+      `SELECT m.id, m.status, m.home_club_id, m.away_club_id, m.home_goals, m.away_goals, m.home_pens, m.away_pens
+       FROM matches m
+       WHERE m.id IN (
+         SELECT t.match_id FROM ties t JOIN stages s ON s.id = t.stage_id JOIN tournaments tr ON tr.id = s.tournament_id
+         WHERE tr.season_id = ? AND t.match_id IS NOT NULL
+       )`,
+    ).bind(seasonId).all<TieMatch>(),
+    env.DB.prepare(`SELECT id, name, short_name, slug, crest_url FROM clubs`).all<{ id: number; name: string; short_name: string | null; slug: string; crest_url: string | null }>(),
+  ]);
   if (!season) return null;
-  const ties = await tiesOfSeason(seasonId);
   const tableSlugs = [...tablesReferenced(ties, season.config.definition)];
+  const loaded = await Promise.all(tableSlugs.map((slug) => loadTable(slug)));
   const tables = new Map<string, TableInfo>();
-  for (const slug of tableSlugs) {
-    const t = await loadTable(slug);
-    if (t) tables.set(slug, t);
-  }
-  const matchIds = ties.map((t) => t.match_id).filter((x): x is number => x !== null);
-  const matches = new Map<number, TieMatch>();
-  if (matchIds.length) {
-    const { results } = await env.DB.prepare(
-      `SELECT id, status, home_club_id, away_club_id, home_goals, away_goals, home_pens, away_pens FROM matches WHERE id IN (${matchIds.map(() => '?').join(',')})`,
-    ).bind(...matchIds).all<TieMatch>();
-    for (const m of results) matches.set(m.id, m);
-  }
+  tableSlugs.forEach((slug, i) => { const t = loaded[i]; if (t) tables.set(slug, t); });
+  const matches = new Map<number, TieMatch>(tieMatchRows.results.map((m) => [m.id, m]));
   const ctx: Context = { tables, ties, matches };
   const states = computeAllTies(ctx);
   const summary = season.config.definition ? seasonSummary(season.config.definition, ctx) : null;
-  const { results: clubRows } = await env.DB.prepare(`SELECT id, name, short_name, slug, crest_url FROM clubs`).all<{ id: number; name: string; short_name: string | null; slug: string; crest_url: string | null }>();
-  return { season, ctx, ties, states, summary, clubs: new Map(clubRows.map((c) => [c.id, c])) };
+  return { season, ctx, ties, states, summary, clubs: new Map(clubsRes.results.map((c) => [c.id, c])) };
 }
 
 export async function seasonIdOfTournament(tournamentId: number): Promise<number | null> {

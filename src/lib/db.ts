@@ -16,6 +16,7 @@ export interface TournamentRow {
   status: string;
   season_name: string;
   season_year?: number;
+  season_id?: number;
 }
 
 export interface MatchRow {
@@ -78,7 +79,7 @@ export async function listTournaments(opts: { currentSeasonOnly?: boolean } = {}
 
 export async function getTournament(slug: string): Promise<TournamentRow | null> {
   return env.DB.prepare(
-    `SELECT t.id, t.slug, t.name, t.category, t.status, s.name AS season_name
+    `SELECT t.id, t.slug, t.name, t.category, t.status, s.name AS season_name, t.season_id
      FROM tournaments t JOIN seasons s ON s.id = t.season_id
      WHERE t.slug = ?`,
   )

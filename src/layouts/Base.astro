@@ -4,8 +4,9 @@ interface Props {
   description?: string;
 }
 const { title, description = 'Resultados, tablas y fixture del fútbol del interior.' } = Astro.props;
-// Caché corta en el borde de Cloudflare: rápido, pero los resultados se ven casi al instante.
-Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=10, stale-while-revalidate=30');
+// Caché corta en el borde de Cloudflare (la aplica src/middleware.ts con la Cache API, usando este
+// `s-maxage`): rápido, pero los resultados se ven en segundos.
+Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=15');
 ---
 <!doctype html>
 <html lang="es">
