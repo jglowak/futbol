@@ -10,6 +10,19 @@ const LOCAL_HOST = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
 // 30 días: el navegador deja de intentar HTTP con este dominio. Se puede subir más adelante.
 const HSTS = 'max-age=2592000';
 
+/** Agrega un header. Las respuestas que salen de la caché (o de un fetch) son de solo lectura:
+ *  en ese caso se copia la respuesta primero, si no `headers.set` tira un error y el visitante ve un 500. */
+function withHeader(res: Response, name: string, value: string): Response {
+  try {
+    res.headers.set(name, value);
+    return res;
+  } catch {
+    const copy = new Response(res.body, res);
+    copy.headers.set(name, value);
+    return copy;
+  }
+}
+
 /** Todo el sitio, siempre por HTTPS: HTTP se redirige y HTTPS lleva HSTS. */
 export const onRequest = defineMiddleware(async (context, next) => {
   const { url, request } = context;
@@ -21,8 +34,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return Response.redirect(to.toString(), request.method === 'GET' || request.method === 'HEAD' ? 301 : 308);
   }
   const res = await handle(context, next);
-  if (url.protocol === 'https:') res.headers.set('Strict-Transport-Security', HSTS);
-  return res;
+  return url.protocol === 'https:' ? withHeader(res, 'Strict-Transport-Security', HSTS) : res;
 });
 
 const handle = defineMiddleware(async (context, next) => {
