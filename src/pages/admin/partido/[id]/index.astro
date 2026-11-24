@@ -8,6 +8,7 @@ import { mediaBucket } from '../../../../lib/media';
 import { getLineup } from '../../../../lib/players';
 import { listEvents } from '../../../../lib/events';
 import { EVENT_UI, eventIcon, eventLabel, eventDetail } from '../../../../lib/events-core';
+import { env } from 'cloudflare:workers';
 
 const id = Number(Astro.params.id);
 const m = Number.isInteger(id) ? await adminMatch(id) : null;
@@ -21,6 +22,10 @@ const squads = [
 ];
 const hasLineup = lineup.length > 0;
 const eventoMsg = Astro.url.searchParams.get('evento');
+// La tanda de penales solo aplica a partidos de llave (semis, finales). En los de liga queda plegada,
+// a mano para el caso raro. Si ya tiene penales cargados, se muestra abierta igual.
+const isKnockout = Boolean(await env.DB.prepare(`SELECT 1 AS x FROM ties WHERE match_id = ?`).bind(id).first());
+const showPensOpen = isKnockout || m.home_pens != null || m.away_pens != null;
 const fotoMsg = Astro.url.searchParams.get('foto');
 const hasR2 = Boolean(mediaBucket());
 const back = `/admin/partido/${id}`;
@@ -99,8 +104,8 @@ const when = (iso: string) =>
   )}
 
   {(isLive || isFinal) && (
-    <>
-      <h2>Penales (solo si hubo definición)</h2>
+    <details class="pens-details" open={showPensOpen}>
+      <summary>{showPensOpen ? 'Penales (solo si hubo definición)' : '¿Hubo definición por penales?'}</summary>
       <form method="post" action={api} class="minute">
         <input type="number" name="home_pens" min="0" max="30" inputmode="numeric" value={m.home_pens ?? ''} placeholder={m.home_short ?? 'Local'} aria-label="Penales local" />
         <span>-</span>
@@ -108,8 +113,13 @@ const when = (iso: string) =>
         <button name="action" value="pens" style="min-height:48px">Guardar</button>
       </form>
       <p class="small">Para el alargue no hace falta nada especial: seguí sumando goles y cargá el minuto (91 a 120). Dejá los penales vacíos para quitarlos.</p>
-    </>
+    </details>
   )}
+  <style is:inline>
+    .pens-details > summary { font-size:.85rem; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:1.2rem 0 .5rem; cursor:pointer; }
+    .pens-details[open] > summary { color:var(--muted); }
+  </style>
+
 
   <h2 id="alineacion">Alineación</h2>
   <a class="lineup-link" href={`/admin/partido/${id}/planilla`}>

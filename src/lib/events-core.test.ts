@@ -20,6 +20,7 @@ describe('events-core', () => {
     expect(eventIcon('red_card')).toBe('🟥');
     expect(eventIcon('sub')).toBe('🔁');
     expect(eventIcon('goal')).toBe('⚽');
+    expect(eventIcon('own_goal')).toBe('🔴'); // gol en contra, pelota roja
   });
 
   it('texto del evento', () => {

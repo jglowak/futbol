@@ -7,7 +7,7 @@ export type EventDbType = 'goal' | 'penalty_goal' | 'own_goal' | 'yellow_card' |
 export const EVENT_UI: Record<string, { db: EventDbType; label: string; icon: string; needsOut?: boolean }> = {
   gol: { db: 'goal', label: 'Gol', icon: '⚽' },
   penal: { db: 'penalty_goal', label: 'Gol de penal', icon: '⚽' },
-  contra: { db: 'own_goal', label: 'Gol en contra', icon: '⚽' },
+  contra: { db: 'own_goal', label: 'Gol en contra', icon: '🔴' },
   amarilla: { db: 'yellow_card', label: 'Amarilla', icon: '🟨' },
   roja: { db: 'red_card', label: 'Roja', icon: '🟥' },
   cambio: { db: 'sub', label: 'Cambio', icon: '🔁', needsOut: true },
@@ -16,7 +16,7 @@ export const EVENT_UI: Record<string, { db: EventDbType; label: string; icon: st
 const BY_DB: Record<EventDbType, { label: string; icon: string }> = {
   goal: { label: 'Gol', icon: '⚽' },
   penalty_goal: { label: 'Gol de penal', icon: '⚽' },
-  own_goal: { label: 'Gol en contra', icon: '⚽' },
+  own_goal: { label: 'Gol en contra', icon: '🔴' },
   yellow_card: { label: 'Amarilla', icon: '🟨' },
   red_card: { label: 'Roja', icon: '🟥' },
   sub: { label: 'Cambio', icon: '🔁' },
