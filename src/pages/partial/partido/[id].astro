@@ -3,10 +3,11 @@ export const partial = true;
 import MatchDetail from '../../../components/MatchDetail.astro';
 import { getMatch } from '../../../lib/db';
 import { listPhotos, listPosts } from '../../../lib/match-content';
+import { listEvents } from '../../../lib/events';
 const id = Number(Astro.params.id);
 const m = Number.isInteger(id) ? await getMatch(id) : null;
 if (!m) return new Response('', { status: 404 });
-const [posts, photos] = await Promise.all([listPosts(id), listPhotos(id)]);
+const [posts, photos, events] = await Promise.all([listPosts(id), listPhotos(id), listEvents(id)]);
 Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=5, stale-while-revalidate=20');
 ---
-<MatchDetail m={m} posts={posts} photos={photos} />
+<MatchDetail m={m} posts={posts} photos={photos} events={events} />

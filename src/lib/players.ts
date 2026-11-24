@@ -133,6 +133,31 @@ export async function savePlanillaLineup(
   return { ok: true, created, linked: resolved.length - created, total: resolved.length };
 }
 
+/** Busca un jugador por nombre (normalizado) o lo crea. Para cargar eventos sin planilla previa. */
+export async function ensurePlayerByName(fullName: string): Promise<number | null> {
+  const name = fullName.replace(/\s+/g, ' ').trim().slice(0, 120);
+  if (!name) return null;
+  const key = nameKey(name);
+  const { results } = await q.prepare(`SELECT id, full_name FROM players`).all<{ id: number; full_name: string }>();
+  const hit = results.find((r) => nameKey(r.full_name) === key);
+  if (hit) return hit.id;
+  const slug = await uniquePlayerSlug(slugify(name));
+  const row = await q.prepare(`INSERT INTO players (slug, full_name) VALUES (?, ?) RETURNING id`).bind(slug, name).first<{ id: number }>();
+  return row?.id ?? null;
+}
+
+/** Jugadores de la alineación de un club (para los desplegables de eventos). */
+export async function lineupPlayers(matchId: number, clubId: number): Promise<{ player_id: number; full_name: string; shirt_number: number | null }[]> {
+  const { results } = await q
+    .prepare(
+      `SELECT l.player_id, p.full_name, l.shirt_number FROM lineups l JOIN players p ON p.id = l.player_id
+       WHERE l.match_id = ? AND l.club_id = ? ORDER BY l.is_starter DESC, l.shirt_number`,
+    )
+    .bind(matchId, clubId)
+    .all<{ player_id: number; full_name: string; shirt_number: number | null }>();
+  return results;
+}
+
 /** Alineación guardada de un partido (para mostrar en el panel y en la página pública). */
 export interface LineupRow {
   club_id: number;

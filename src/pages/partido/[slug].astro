@@ -5,6 +5,7 @@ import Lineup from '../../components/Lineup.astro';
 import { getMatch, getMatchBySlug } from '../../lib/db';
 import { listPhotos, listPosts } from '../../lib/match-content';
 import { getLineup } from '../../lib/players';
+import { listEvents } from '../../lib/events';
 import { formatKickoff } from '../../lib/format';
 
 const param = Astro.params.slug ?? '';
@@ -16,14 +17,14 @@ if (!m && /^\d+$/.test(param)) {
 }
 if (!m) return new Response('Partido no encontrado', { status: 404 });
 const id = m.id;
-const [posts, photos, lineup] = await Promise.all([listPosts(id), listPhotos(id), getLineup(id)]);
+const [posts, photos, lineup, events] = await Promise.all([listPosts(id), listPhotos(id), getLineup(id), listEvents(id)]);
 const title = `${m.home_name} ${m.status === 'scheduled' ? 'vs' : `${m.home_goals ?? 0}-${m.away_goals ?? 0}`} ${m.away_name}`;
 const refreshEvery = m.status === 'finished' ? 60000 : 15000;
 ---
 <Base title={`${title} · ${m.tournament_name}`} description={`${m.tournament_name}${m.round ? ` · ${m.round}` : ''} · ${formatKickoff(m.kickoff_at)}`}>
   <p class="note" style="margin:0 0 .5rem"><a href={`/torneo/${m.tournament_slug}`}>{m.tournament_name}</a>{m.group_name ? ` · ${m.group_name}` : ''}{m.round ? ` · ${m.round}` : ''} · {formatKickoff(m.kickoff_at)}{m.venue ? ` · ${m.venue}` : ''}</p>
   <div data-refresh={`/partial/partido/${id}`} data-refresh-every={refreshEvery}>
-    <MatchDetail m={m} posts={posts} photos={photos} />
+    <MatchDetail m={m} posts={posts} photos={photos} events={events} />
   </div>
   <Lineup rows={lineup} homeId={m.home_id} awayId={m.away_id} homeName={m.home_name} awayName={m.away_name} />
 </Base>

@@ -6,13 +6,21 @@ import { finishedLabel, formatKickoff, pensText } from '../../../../lib/format';
 import { listPhotos, listPosts, POST_KINDS } from '../../../../lib/match-content';
 import { mediaBucket } from '../../../../lib/media';
 import { getLineup } from '../../../../lib/players';
+import { listEvents } from '../../../../lib/events';
+import { EVENT_UI, eventIcon, eventLabel, eventDetail } from '../../../../lib/events-core';
 
 const id = Number(Astro.params.id);
 const m = Number.isInteger(id) ? await adminMatch(id) : null;
 if (!m) return new Response('Partido no encontrado', { status: 404 });
 
-const [history, undoable, posts, photos, lineup] = await Promise.all([matchHistory(id, 15), lastUndoableEntry(id), listPosts(id), listPhotos(id), getLineup(id)]);
+const [history, undoable, posts, photos, lineup, events] = await Promise.all([matchHistory(id, 15), lastUndoableEntry(id), listPosts(id), listPhotos(id), getLineup(id), listEvents(id)]);
 const lineupCount = { home: lineup.filter((l) => l.club_id === m.home_id).length, away: lineup.filter((l) => l.club_id === m.away_id).length };
+const squads = [
+  { label: m.home_name, clubId: m.home_id, players: lineup.filter((l) => l.club_id === m.home_id) },
+  { label: m.away_name, clubId: m.away_id, players: lineup.filter((l) => l.club_id === m.away_id) },
+];
+const hasLineup = lineup.length > 0;
+const eventoMsg = Astro.url.searchParams.get('evento');
 const fotoMsg = Astro.url.searchParams.get('foto');
 const hasR2 = Boolean(mediaBucket());
 const back = `/admin/partido/${id}`;
@@ -109,13 +117,82 @@ const when = (iso: string) =>
     <span class="small">{m.home_short ?? m.home_name}: {lineupCount.home || '—'} · {m.away_short ?? m.away_name}: {lineupCount.away || '—'}</span>
   </a>
 
+  <h2 id="eventos">Goles, tarjetas y cambios</h2>
+  {eventoMsg && <div class="notice" style="background:#fde8e6;border-color:#f3b3ad">{eventoMsg}</div>}
+  <div class="card" style="padding:.9rem">
+    <form method="post" action={`${api}/evento`} class="evento-form">
+      <div class="evento-row">
+        <input type="number" name="minute" min="0" max="130" inputmode="numeric" placeholder="min'" aria-label="Minuto" />
+        <select name="tipo" id="ev-tipo" aria-label="Tipo">
+          {Object.entries(EVENT_UI).map(([k, v]) => <option value={k}>{v.icon} {v.label}</option>)}
+        </select>
+      </div>
+      {hasLineup ? (
+        <select name="player" aria-label="Jugador">
+          <option value="">— elegí el jugador —</option>
+          {squads.map((s) => s.players.length > 0 && (
+            <optgroup label={s.label}>
+              {s.players.map((p) => <option value={`${s.clubId}:${p.player_id}`}>{p.shirt_number != null ? `${p.shirt_number}. ` : ''}{p.full_name}</option>)}
+            </optgroup>
+          ))}
+        </select>
+      ) : (
+        <div class="evento-free">
+          <div class="evento-radios">
+            <label><input type="radio" name="club" value="home" checked /> {m.home_short ?? m.home_name}</label>
+            <label><input type="radio" name="club" value="away" /> {m.away_short ?? m.away_name}</label>
+          </div>
+          <input type="text" name="player_name" maxlength="120" placeholder="Nombre del jugador" />
+          <p class="small">Cargá la planilla para elegir del plantel en vez de escribir.</p>
+        </div>
+      )}
+      <div id="ev-out" hidden>
+        {hasLineup ? (
+          <select name="out" aria-label="Sale (cambio)">
+            <option value="">— sale (opcional) —</option>
+            {squads.map((s) => s.players.length > 0 && (
+              <optgroup label={s.label}>
+                {s.players.map((p) => <option value={`${s.clubId}:${p.player_id}`}>{p.shirt_number != null ? `${p.shirt_number}. ` : ''}{p.full_name}</option>)}
+              </optgroup>
+            ))}
+          </select>
+        ) : (
+          <input type="text" name="out_name" maxlength="120" placeholder="Sale (opcional)" />
+        )}
+      </div>
+      <button type="submit" style="min-height:48px">Agregar evento</button>
+    </form>
+    {events.length > 0 && (
+      <ul class="admin-posts">
+        {events.map((e) => (
+          <li>
+            <span class="min">{e.minute !== null ? `${e.minute}'` : '—'}</span>
+            <span class="body"><small>{eventIcon(e.type)} {eventLabel(e.type)}</small> {eventDetail({ type: e.type, playerName: e.playerName, relatedName: e.relatedName })}</span>
+            <form method="post" action={`/api/admin/evento/${e.id}`}>
+              <input type="hidden" name="back" value={`${back}#eventos`} />
+              <button name="action" value="delete" class="link-danger" aria-label="Borrar">✕</button>
+            </form>
+          </li>
+        ))}
+      </ul>
+    )}
+  </div>
+  <script is:inline>
+    (function () {
+      var sel = document.getElementById('ev-tipo'), out = document.getElementById('ev-out');
+      if (!sel || !out) return;
+      function sync() { out.hidden = sel.value !== 'cambio'; }
+      sel.addEventListener('change', sync); sync();
+    })();
+  </script>
+
   <h2 id="relato">Relato</h2>
   <div class="card" style="padding:.9rem">
     <form method="post" action={`${api}/relato`} class="relato-form">
       <div class="relato-row">
         <input type="number" name="minute" min="0" max="130" inputmode="numeric" placeholder={isLive && m.minute ? `${m.minute}'` : "min'"} aria-label="Minuto" />
         <select name="kind" aria-label="Tipo">
-          {Object.entries(POST_KINDS).map(([k, label]) => <option value={k}>{label}</option>)}
+          {Object.entries(POST_KINDS).filter(([k]) => ['text', 'info', 'start', 'end'].includes(k)).map(([k, label]) => <option value={k}>{label}</option>)}
         </select>
       </div>
       {isLive && m.minute && <label class="small"><input type="checkbox" name="use_current_minute" value="1" checked /> usar el minuto actual si no escribo uno</label>}

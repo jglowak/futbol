@@ -1,0 +1,45 @@
+---
+// Minuto a minuto: combina los eventos (gol/tarjeta/cambio, con ícono) y el relato (prosa),
+// ordenado del más reciente al más viejo.
+import type { MatchPost } from '../lib/match-content';
+import { POST_KINDS } from '../lib/match-content';
+import type { MatchEventRow } from '../lib/events';
+import { eventIcon, eventLabel, eventDetail } from '../lib/events-core';
+interface Props { posts: MatchPost[]; events: MatchEventRow[] }
+const { posts, events } = Astro.props;
+
+const POST_ICON: Record<string, string> = { start: '▶️', end: '⏹️', info: 'ℹ️', text: '', goal: '⚽', card: '🟨', sub: '🔁' };
+
+type Item = { minute: number | null; tag: string | null; lines: string[]; order: number };
+const items: Item[] = [];
+for (const e of events) {
+  items.push({
+    minute: e.minute,
+    tag: `${eventIcon(e.type)} ${eventLabel(e.type)}`,
+    lines: [eventDetail({ type: e.type, playerName: e.playerName, relatedName: e.relatedName })],
+    order: e.minute ?? -1,
+  });
+}
+for (const p of posts) {
+  items.push({
+    minute: p.minute,
+    tag: p.kind !== 'text' ? `${POST_ICON[p.kind] ?? ''} ${POST_KINDS[p.kind] ?? ''}`.trim() : null,
+    lines: p.body.split('\n'),
+    order: p.minute ?? -1,
+  });
+}
+items.sort((a, b) => b.order - a.order);
+---
+{items.length === 0
+  ? <p class="note">Todavía no hay minuto a minuto de este partido.</p>
+  : <ol class="posts">
+      {items.map((it) => (
+        <li class="post">
+          <span class="min">{it.minute !== null ? `${it.minute}'` : ''}</span>
+          <div class="body">
+            {it.tag && <span class="tag">{it.tag}</span>}
+            {it.lines.map((line) => <p>{line}</p>)}
+          </div>
+        </li>
+      ))}
+    </ol>}
