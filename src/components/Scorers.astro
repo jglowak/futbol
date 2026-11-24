@@ -1,0 +1,34 @@
+---
+import type { ScorerRow } from '../lib/scorers';
+import Crest from './Crest.astro';
+interface Props { rows: ScorerRow[] }
+const { rows } = Astro.props;
+---
+{rows.length > 0 && (
+  <section class="scorers">
+    <h2>Goleadores</h2>
+    <div class="card">
+      <table>
+        <thead><tr><th>#</th><th>Jugador</th><th>Club</th><th>Goles</th></tr></thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr>
+              <td>{i + 1}</td>
+              <td class="player">{r.fullName}</td>
+              <td class="club"><Crest src={r.crestUrl} name={r.clubName} /> <span class="full">{r.clubName}</span><span class="short">{r.clubShort ?? r.clubName}</span></td>
+              <td class="goals">{r.goals}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </section>
+)}
+
+<style>
+  .scorers { margin-top:1.2rem; }
+  .scorers .player { text-align:left; }
+  .scorers td.goals { font-weight:700; }
+  .scorers .club .short { display:none; }
+  @media (max-width:520px) { .scorers .club .full { display:none; } .scorers .club .short { display:inline; } }
+</style>

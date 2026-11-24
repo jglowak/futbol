@@ -5,6 +5,8 @@ import StandingsTable from '../../components/StandingsTable.astro';
 import { getComputedTable, getTablesForTournament, getTournament, getTournamentMatches } from '../../lib/db';
 import Bracket from '../../components/Bracket.astro';
 import { loadSeasonContext } from '../../lib/phases';
+import Scorers from '../../components/Scorers.astro';
+import { topScorers } from '../../lib/scorers';
 import { env } from 'cloudflare:workers';
 
 const { slug } = Astro.params;
@@ -12,7 +14,7 @@ const tournament = slug ? await getTournament(slug) : null;
 if (!tournament) return new Response('Torneo no encontrado', { status: 404 });
 
 // Todo en paralelo: D1 está lejos y cada consulta en serie suma un viaje de ida y vuelta.
-const [matches, computed, sc, stageRows] = await Promise.all([
+const [matches, computed, sc, stageRows, scorers] = await Promise.all([
   getTournamentMatches(tournament.id),
   getTablesForTournament(tournament.id)
     .then((tables) => Promise.all(tables.map((t) => getComputedTable(t.slug))))
@@ -20,6 +22,7 @@ const [matches, computed, sc, stageRows] = await Promise.all([
   // Llaves de este torneo (si las tiene) y resumen de la temporada
   tournament.season_id ? loadSeasonContext(tournament.season_id) : Promise.resolve(null),
   env.DB.prepare(`SELECT id FROM stages WHERE tournament_id = ?`).bind(tournament.id).all<{ id: number }>(),
+  topScorers(tournament.id),
 ]);
 const stageIds = new Set(stageRows.results.map((r) => r.id));
 const tieStates = (sc?.ties ?? []).filter((t) => stageIds.has(t.stage_id)).map((t) => sc!.states.get(t.code)!);
@@ -63,6 +66,8 @@ for (const m of matches) {
       <Bracket states={tieStates} clubs={sc!.clubs} slugs={matchSlugs} notes={tieNotes} />
     </>
   )}
+
+  <Scorers rows={scorers} />
 
   <h2>Fixture y resultados</h2>
   {[...rounds.entries()].map(([round, list]) => (
