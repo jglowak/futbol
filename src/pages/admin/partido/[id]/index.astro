@@ -5,12 +5,14 @@ import { adminMatch, lastUndoableEntry, matchHistory } from '../../../../lib/adm
 import { finishedLabel, formatKickoff, pensText } from '../../../../lib/format';
 import { listPhotos, listPosts, POST_KINDS } from '../../../../lib/match-content';
 import { mediaBucket } from '../../../../lib/media';
+import { getLineup } from '../../../../lib/players';
 
 const id = Number(Astro.params.id);
 const m = Number.isInteger(id) ? await adminMatch(id) : null;
 if (!m) return new Response('Partido no encontrado', { status: 404 });
 
-const [history, undoable, posts, photos] = await Promise.all([matchHistory(id, 15), lastUndoableEntry(id), listPosts(id), listPhotos(id)]);
+const [history, undoable, posts, photos, lineup] = await Promise.all([matchHistory(id, 15), lastUndoableEntry(id), listPosts(id), listPhotos(id), getLineup(id)]);
+const lineupCount = { home: lineup.filter((l) => l.club_id === m.home_id).length, away: lineup.filter((l) => l.club_id === m.away_id).length };
 const fotoMsg = Astro.url.searchParams.get('foto');
 const hasR2 = Boolean(mediaBucket());
 const back = `/admin/partido/${id}`;
@@ -100,6 +102,12 @@ const when = (iso: string) =>
       <p class="small">Para el alargue no hace falta nada especial: seguí sumando goles y cargá el minuto (91 a 120). Dejá los penales vacíos para quitarlos.</p>
     </>
   )}
+
+  <h2 id="alineacion">Alineación</h2>
+  <a class="lineup-link" href={`/admin/partido/${id}/planilla`}>
+    <span>Cargar / revisar planilla</span>
+    <span class="small">{m.home_short ?? m.home_name}: {lineupCount.home || '—'} · {m.away_short ?? m.away_name}: {lineupCount.away || '—'}</span>
+  </a>
 
   <h2 id="relato">Relato</h2>
   <div class="card" style="padding:.9rem">

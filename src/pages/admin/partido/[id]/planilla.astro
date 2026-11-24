@@ -1,0 +1,185 @@
+---
+import Admin from '../../../../layouts/Admin.astro';
+import { adminMatch } from '../../../../lib/admin';
+import { planillaAiConfig } from '../../../../lib/planilla-ai';
+import { getLineup } from '../../../../lib/players';
+
+const id = Number(Astro.params.id);
+const m = Number.isInteger(id) ? await adminMatch(id) : null;
+if (!m) return new Response('Partido no encontrado', { status: 404 });
+
+const aiReady = Boolean(planillaAiConfig());
+const lineup = await getLineup(id);
+const loaded = {
+  home: lineup.filter((l) => l.club_id === m.home_id).length,
+  away: lineup.filter((l) => l.club_id === m.away_id).length,
+};
+const match = { home_id: m.home_id, home_name: m.home_name, away_id: m.away_id, away_name: m.away_name };
+---
+<Admin title="Planilla" back={`/admin/partido/${id}`}>
+  <p class="who"><strong>{m.home_name}</strong> vs <strong>{m.away_name}</strong></p>
+
+  {!aiReady && (
+    <div class="notice warn">La lectura automática no está configurada todavía (falta la clave de la IA en el Worker). Podés cargar la alineación a mano igual.</div>
+  )}
+
+  <div class="card pad">
+    <label class="fld">Equipo de esta planilla
+      <select id="side">
+        <option value="home">{m.home_name} (local){loaded.home ? ' · ya cargada' : ''}</option>
+        <option value="away">{m.away_name} (visitante){loaded.away ? ' · ya cargada' : ''}</option>
+      </select>
+    </label>
+    <label class="fld">Foto de la planilla
+      <input type="file" id="file" accept="image/*" capture="environment" />
+    </label>
+    <div class="actions">
+      <button type="button" id="read" disabled={!aiReady}>Leer con IA</button>
+      <button type="button" id="blank" class="ghost">Cargar a mano</button>
+    </div>
+    <p id="status" class="small"></p>
+  </div>
+
+  <div id="header-info" class="notice" hidden></div>
+  <div id="warnings" class="notice warn" hidden></div>
+
+  <div id="editor" hidden>
+    <h2>Alineación — revisá y corregí</h2>
+    <p class="small">Marcá <b>T</b> para titular, elegí <b>A</b> (arquero) y <b>C</b> (capitán). La ficha vacía queda como provisorio.</p>
+    <div class="card"><div id="rows"></div></div>
+    <button type="button" id="addrow" class="ghost">+ Agregar jugador</button>
+    <button type="button" id="save">Guardar alineación</button>
+    <p id="saveStatus" class="small"></p>
+  </div>
+
+  <script type="application/json" id="match" set:html={JSON.stringify(match)}></script>
+
+  <style>
+    .who { text-align:center; margin:.2rem 0 .8rem; }
+    .pad { padding:.9rem; }
+    .fld { display:block; margin-bottom:.7rem; font-size:.85rem; color:var(--muted); }
+    .fld select, .fld input { display:block; width:100%; margin-top:.25rem; padding:.55rem; font-size:1rem; border:1px solid var(--line); border-radius:8px; background:#fff; }
+    .actions { display:flex; gap:.5rem; }
+    button { font:inherit; font-weight:700; padding:.6rem .9rem; border-radius:9px; border:0; background:var(--accent); color:#fff; }
+    button:disabled { opacity:.5; }
+    button.ghost { background:#fff; color:var(--ink); border:1px solid var(--line); }
+    #save { width:100%; margin-top:.7rem; padding:.8rem; }
+    #addrow { margin:.6rem 0; }
+    .notice.warn { background:#fff6e6; border-color:#f0d9a6; }
+    .prow { display:grid; grid-template-columns:auto 2.4rem 1fr 4.5rem auto; gap:.35rem; align-items:center; padding:.5rem .6rem; }
+    .prow + .prow { border-top:1px solid var(--line); }
+    .prow input[type=text], .prow input[type=number] { padding:.4rem; font-size:.95rem; border:1px solid var(--line); border-radius:6px; width:100%; }
+    .prow .flags { display:flex; gap:.3rem; font-size:.7rem; color:var(--muted); align-items:center; }
+    .prow .flags label { display:flex; flex-direction:column; align-items:center; }
+    .prow .rm { background:none; color:var(--live); padding:.2rem .4rem; font-size:1.1rem; border:0; }
+    .prov { color:var(--warn); font-size:.7rem; }
+  </style>
+
+  <script is:inline>
+    (function () {
+      const match = JSON.parse(document.getElementById('match').textContent);
+      const $ = (id) => document.getElementById(id);
+      const rowsEl = $('rows');
+      let players = [];
+
+      // Reduce la foto antes de subir: menos datos, menos costo. Lado máximo 1280 px, JPEG.
+      async function downscale(file) {
+        const img = await createImageBitmap(file);
+        const max = 1280, scale = Math.min(1, max / Math.max(img.width, img.height));
+        const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+        const c = document.createElement('canvas'); c.width = w; c.height = h;
+        c.getContext('2d').drawImage(img, 0, 0, w, h);
+        return await new Promise((res) => c.toBlob(res, 'image/jpeg', 0.85));
+      }
+
+      function blank() {
+        return { shirtNumber: null, fichaOficial: '', fullName: '', isStarter: true, isGoalkeeper: false, isCaptain: false };
+      }
+
+      function render() {
+        rowsEl.innerHTML = '';
+        players.forEach((p, i) => {
+          const row = document.createElement('div');
+          row.className = 'prow';
+          row.innerHTML =
+            '<label class="flags"><span>T</span><input type="checkbox" data-k="isStarter" ' + (p.isStarter ? 'checked' : '') + '></label>' +
+            '<input type="number" min="0" max="99" data-k="shirtNumber" value="' + (p.shirtNumber ?? '') + '" aria-label="Número">' +
+            '<input type="text" data-k="fullName" value="' + esc(p.fullName) + '" placeholder="Nombre y apellido">' +
+            '<input type="text" data-k="fichaOficial" value="' + esc(p.fichaOficial ?? '') + '" placeholder="ficha">' +
+            '<span class="flags">' +
+              '<label><span>A</span><input type="radio" name="gk" ' + (p.isGoalkeeper ? 'checked' : '') + '></label>' +
+              '<label><span>C</span><input type="radio" name="cap" ' + (p.isCaptain ? 'checked' : '') + '></label>' +
+              '<button type="button" class="rm" title="Quitar">×</button>' +
+            '</span>';
+          row.querySelectorAll('input[data-k]').forEach((el) => {
+            el.addEventListener('input', () => {
+              const k = el.dataset.k;
+              if (k === 'isStarter') p.isStarter = el.checked;
+              else if (k === 'shirtNumber') p.shirtNumber = el.value === '' ? null : Number(el.value);
+              else p[k] = el.value;
+            });
+          });
+          row.querySelector('[name=gk]').addEventListener('change', () => { players.forEach((q) => (q.isGoalkeeper = false)); p.isGoalkeeper = true; });
+          row.querySelector('[name=cap]').addEventListener('change', () => { players.forEach((q) => (q.isCaptain = false)); p.isCaptain = true; });
+          row.querySelector('.rm').addEventListener('click', () => { players.splice(i, 1); render(); });
+          rowsEl.appendChild(row);
+        });
+      }
+      function esc(s) { return String(s).replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+
+      function showEditor(data) {
+        players = (data.players || []).map((p) => ({
+          shirtNumber: p.shirtNumber ?? null, fichaOficial: p.fichaOficial ?? '', fullName: p.fullName || '',
+          isStarter: !!p.isStarter, isGoalkeeper: !!p.isGoalkeeper, isCaptain: !!p.isCaptain,
+        }));
+        if (!players.length) players = [blank()];
+        const h = data.header || {};
+        const info = $('header-info');
+        if (h.rival || h.fecha || h.club) {
+          info.textContent = 'La planilla dice: ' + [h.club && ('club ' + h.club), h.rival && ('rival ' + h.rival), h.fecha].filter(Boolean).join(' · ') + '. Confirmá que es este partido.';
+          info.hidden = false;
+        }
+        const warn = $('warnings');
+        if (data.warnings && data.warnings.length) { warn.innerHTML = data.warnings.map(esc).join('<br>'); warn.hidden = false; } else warn.hidden = true;
+        render();
+        $('editor').hidden = false;
+      }
+
+      $('read').addEventListener('click', async () => {
+        const f = $('file').files[0];
+        if (!f) { $('status').textContent = 'Elegí una foto primero.'; return; }
+        $('read').disabled = true; $('status').textContent = 'Reduciendo la foto…';
+        try {
+          const small = await downscale(f);
+          $('status').textContent = 'Leyendo la planilla con IA…';
+          const fd = new FormData(); fd.append('image', small, 'planilla.jpg');
+          const r = await fetch(location.pathname.replace('/admin/', '/api/admin/') + '-extract', { method: 'POST', body: fd });
+          const data = await r.json();
+          if (!r.ok || data.error) throw new Error(data.error || ('error ' + r.status));
+          $('status').textContent = 'Listo. Revisá abajo.';
+          showEditor(data);
+        } catch (e) {
+          $('status').textContent = e.message;
+        } finally { $('read').disabled = false; }
+      });
+
+      $('blank').addEventListener('click', () => { showEditor({ players: Array.from({ length: 11 }, blank) }); });
+      $('addrow').addEventListener('click', () => { players.push(blank()); render(); });
+
+      $('save').addEventListener('click', async () => {
+        $('save').disabled = true; $('saveStatus').textContent = 'Guardando…';
+        try {
+          const body = { side: $('side').value, players: players.map((p) => ({ ...p, fichaOficial: p.fichaOficial || null })) };
+          const r = await fetch(location.pathname.replace('/admin/', '/api/admin/') + '-guardar', {
+            method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+          });
+          const data = await r.json();
+          if (!r.ok || data.error) throw new Error(data.error || ('error ' + r.status));
+          $('saveStatus').textContent = 'Guardado: ' + data.total + ' jugadores (' + data.created + ' nuevos). Volvé al partido.';
+        } catch (e) {
+          $('saveStatus').textContent = e.message;
+        } finally { $('save').disabled = false; }
+      });
+    })();
+  </script>
+</Admin>
