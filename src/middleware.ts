@@ -33,7 +33,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
     // 301 para lectura; 308 para el resto, que conserva el método (un POST no se vuelve GET).
     return Response.redirect(to.toString(), request.method === 'GET' || request.method === 'HEAD' ? 301 : 308);
   }
-  const res = await handle(context, next);
+  // handle() siempre resuelve en una Response; el cast evita el Response|void que infiere Astro.
+  const res = (await handle(context, next)) as Response;
   return url.protocol === 'https:' ? withHeader(res, 'Strict-Transport-Security', HSTS) : res;
 });
 
