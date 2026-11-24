@@ -1,0 +1,57 @@
+---
+import type { LineupRow } from '../lib/players';
+interface Props {
+  rows: LineupRow[];
+  homeId: number;
+  awayId: number;
+  homeName: string;
+  awayName: string;
+}
+const { rows, homeId, awayId, homeName, awayName } = Astro.props;
+
+const side = (clubId: number) => {
+  const list = rows.filter((r) => r.club_id === clubId);
+  return { starters: list.filter((r) => r.is_starter), subs: list.filter((r) => !r.is_starter) };
+};
+const label = (r: LineupRow) =>
+  `${r.shirt_number != null ? `${r.shirt_number}. ` : ''}${r.full_name}${r.is_goalkeeper ? ' (AR)' : ''}${r.is_captain ? ' (C)' : ''}`;
+const home = side(homeId);
+const away = side(awayId);
+const hasAny = rows.length > 0;
+---
+{hasAny && (
+  <section class="lineup">
+    <h2>Formaciones</h2>
+    <div class="cols">
+      {[{ name: homeName, s: home }, { name: awayName, s: away }].map(({ name, s }) => (
+        <div class="team card">
+          <h3>{name}</h3>
+          {s.starters.length > 0 ? (
+            <ul>{s.starters.map((r) => <li>{label(r)}</li>)}</ul>
+          ) : (
+            <p class="note">Sin titulares cargados.</p>
+          )}
+          {s.subs.length > 0 && (
+            <>
+              <h4>Suplentes</h4>
+              <ul class="subs">{s.subs.map((r) => <li>{label(r)}</li>)}</ul>
+            </>
+          )}
+        </div>
+      ))}
+    </div>
+    <p class="note">AR: arquero · C: capitán</p>
+  </section>
+)}
+
+<style>
+  .lineup { margin-top:1.2rem; }
+  .cols { display:grid; grid-template-columns:1fr 1fr; gap:.7rem; }
+  .team { padding:.7rem .85rem; }
+  .team h3 { font-size:1rem; margin:0 0 .5rem; }
+  .team h4 { font-size:.78rem; text-transform:uppercase; color:var(--muted); margin:.7rem 0 .3rem; }
+  .team ul { list-style:none; margin:0; padding:0; }
+  .team li { padding:.18rem 0; font-size:.92rem; }
+  .team ul.subs li { color:var(--muted); font-size:.85rem; }
+  @media (max-width:520px) { .cols { grid-template-columns:1fr; } }
+</style>
