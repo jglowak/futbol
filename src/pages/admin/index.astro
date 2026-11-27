@@ -37,7 +37,7 @@ const sections = [
   </div>
 
   <h2>Herramientas</h2>
-  {escudosMsg && <div class="notice">{escudosMsg === 'sin-r2' ? 'R2 todavía no está conectado al Worker.' : `Escudos copiados: ${escudosMsg}`}</div>}
+  {escudosMsg && <div class="notice">{escudosMsg === 'sin-r2' ? 'R2 todavía no está conectado al Worker.' : `Escudos: ${escudosMsg}`}</div>}
   {importMsg && <div class="notice">{importMsg.startsWith('ok:') ? `Histórico importado (${importMsg.slice(3)} sentencias).` : importMsg}</div>}
   <div class="card" style="padding:.9rem;margin-bottom:.6rem">
     <p style="margin:0 0 .6rem;font-size:.9rem">Histórico de AnWP: <strong>{counts?.hist ?? 0}</strong> torneos importados · <strong>{counts?.clubs ?? 0}</strong> clubes en total</p>
@@ -48,7 +48,8 @@ const sections = [
   <div class="card" style="padding:.9rem">
     <p style="margin:0 0 .6rem;font-size:.9rem">Escudos alojados fuera de Cloudflare: <strong>{pendingCrests}</strong>{!hasR2 && ' · R2 sin conectar'}</p>
     <form method="post" action="/api/admin/escudos/sync">
-      <button class="ghost" disabled={!hasR2 || pendingCrests === 0}>Copiar escudos a R2</button>
+      <button class="ghost" disabled={!hasR2}>Copiar y reparar escudos</button>
     </form>
+    <p class="history" style="margin:.5rem 0 0">Copia los que faltan y vuelve a traer los que se perdieron. Si alguno falla, se sube a mano desde la ficha del club.</p>
   </div>
 </Admin>

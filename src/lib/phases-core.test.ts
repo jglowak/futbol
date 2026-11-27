@@ -6,7 +6,7 @@ import type { StandingRow } from './standings';
 const row = (clubId: number, points: number, gd = 0, gf = 0): StandingRow => ({
   position: 0, clubId, name: `Club ${clubId}`, shortName: null, crestUrl: null, slug: null,
   played: 0, won: 0, drawn: 0, lost: 0, goalsFor: gf, goalsAgainst: gf - gd, goalDifference: gd, points,
-  pointsAdjustment: 0, adjustmentReasons: [],
+  pointsAdjustment: 0, adjustmentReasons: [], live: false, positionChange: 0,
 });
 const table = (name: string, rows: StandingRow[], pending = 0, positionOverrides: Record<string, number> = {}): TableInfo => ({
   name, rows: rows.map((r, i) => ({ ...r, position: i + 1 })), pending, positionOverrides,
