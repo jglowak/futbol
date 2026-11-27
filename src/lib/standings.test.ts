@@ -117,3 +117,53 @@ describe('computeStandings', () => {
     expect(t.map((r) => r.position)).toEqual([1, 2, 3]);
   });
 });
+
+describe('partidos en juego (includeLive)', () => {
+  const clubs = [
+    { id: 1, name: 'Candil' },
+    { id: 2, name: 'Quilmes' },
+    { id: 3, name: 'River' },
+    { id: 4, name: 'Alianza' },
+  ];
+  const matches = [
+    { homeClubId: 1, awayClubId: 3, homeGoals: 1, awayGoals: 0, status: 'finished' },
+    { homeClubId: 2, awayClubId: 4, homeGoals: 2, awayGoals: 0, status: 'finished' },
+    // En juego: Quilmes va perdiendo, Candil empata.
+    { homeClubId: 2, awayClubId: 1, homeGoals: 0, awayGoals: 0, status: 'live' },
+    { homeClubId: 3, awayClubId: 4, homeGoals: 1, awayGoals: 2, status: 'live' },
+  ];
+
+  it('por defecto ignora los partidos en juego', () => {
+    const rows = computeStandings(clubs, matches);
+    expect(rows.map((r) => [r.name, r.played, r.points])).toEqual([
+      ['Quilmes', 1, 3],
+      ['Candil', 1, 3],
+      ['River', 1, 0],
+      ['Alianza', 1, 0],
+    ]);
+    expect(rows.every((r) => r.live === false)).toBe(true);
+  });
+
+  it('con includeLive suma el resultado parcial y marca los clubes en juego', () => {
+    const rows = computeStandings(clubs, matches, [], {}, { includeLive: true });
+    const by = new Map(rows.map((r) => [r.name, r]));
+    expect(by.get('Quilmes')!.points).toBe(4); // 3 + empate en curso
+    expect(by.get('Candil')!.points).toBe(4);
+    expect(by.get('Alianza')!.points).toBe(3); // ganando 2-1 en curso
+    expect(by.get('River')!.points).toBe(0);
+    expect(rows.every((r) => r.live)).toBe(true);
+    expect(by.get('Alianza')!.played).toBe(2);
+  });
+
+  it('un partido en juego no cuenta si un club no está en la tabla', () => {
+    const rows = computeStandings(
+      [{ id: 1, name: 'Candil' }],
+      [{ homeClubId: 1, awayClubId: 9, homeGoals: 3, awayGoals: 0, status: 'live' }],
+      [],
+      {},
+      { includeLive: true },
+    );
+    expect(rows[0].played).toBe(0);
+    expect(rows[0].live).toBe(false);
+  });
+});

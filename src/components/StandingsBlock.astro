@@ -1,0 +1,24 @@
+---
+// Tabla de posiciones con dos vistas: oficial (solo finalizados) y en vivo
+// (suma los partidos en juego con el resultado parcial).
+import type { ComputedTable } from '../lib/db';
+import StandingsTable from './StandingsTable.astro';
+interface Props { computed: ComputedTable; relegation?: number; oficial?: boolean }
+const { computed, relegation = 0, oficial = false } = Astro.props;
+const { table, rows, liveRows, liveCount } = computed;
+const showLive = liveCount > 0 && !oficial && liveRows !== null;
+const partidos = `${liveCount} ${liveCount === 1 ? 'partido' : 'partidos'} en juego`;
+---
+{liveCount > 0 && (
+  <p class="table-switch">
+    {showLive
+      ? <><span class="live-dot">●</span> <strong>Provisoria</strong> · incluye {partidos} <a href={`/tabla/${table.slug}?oficial=1`}>ver oficial</a></>
+      : <><strong>Oficial</strong> · solo partidos finalizados <a href={`/tabla/${table.slug}`}><span class="live-dot">●</span> ver en vivo</a></>}
+  </p>
+)}
+<StandingsTable
+  rows={showLive ? liveRows! : rows}
+  relegation={relegation}
+  snapshot={table.config.includes('"snapshot":true')}
+  live={showLive}
+/>

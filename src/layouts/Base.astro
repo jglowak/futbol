@@ -45,6 +45,13 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=15');
       .card.pad { padding:.9rem; }
       .live-dot { color:var(--live); font-weight:700; }
       tr.relegation td { background:#fdf0ef; }
+      /* Tabla en vivo */
+      .table-switch { display:flex; flex-wrap:wrap; gap:.4rem; align-items:baseline; font-size:.82rem; color:var(--muted); margin:.2rem 0 .4rem; }
+      .table-switch .live-dot { animation: blink 1.2s ease-in-out infinite; }
+      .table-switch a { margin-left:auto; }
+      tr.row-live td { background:#fff8e8; }
+      td.pos .up { color:#0a6b3d; font-size:.7em; margin-left:.15rem; }
+      td.pos .down { color:var(--live); font-size:.7em; margin-left:.15rem; }
       tr.relegation td:first-child { box-shadow: inset 3px 0 0 var(--live); }
       a.club-link { color:inherit; text-decoration:none; }
       .form { display:inline-block; width:1.4rem; height:1.4rem; line-height:1.4rem; text-align:center; border-radius:4px; color:#fff; font-size:.75rem; font-weight:700; margin-right:.15rem; }

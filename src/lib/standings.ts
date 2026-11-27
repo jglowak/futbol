@@ -19,7 +19,7 @@ export interface MatchInput {
   awayClubId: number;
   homeGoals: number | null;
   awayGoals: number | null;
-  /** Solo se cuentan los partidos 'finished'. */
+  /** Se cuentan los 'finished'; los 'live' solo si se pide `includeLive`. */
   status: string;
 }
 
@@ -61,6 +61,15 @@ export interface StandingRow {
   /** Puntos aportados por ajustes manuales (ya incluidos en `points`). */
   pointsAdjustment: number;
   adjustmentReasons: string[];
+  /** El club tiene un partido en juego contado en esta tabla (solo con includeLive). */
+  live: boolean;
+  /** Puestos que ganó (+) o perdió (−) respecto de la tabla oficial. Lo completa quien compara. */
+  positionChange: number;
+}
+
+export interface StandingsOptions {
+  /** Contar también los partidos en juego, con el resultado parcial. */
+  includeLive?: boolean;
 }
 
 const DEFAULT_POINTS = { win: 3, draw: 1, loss: 0 };
@@ -71,6 +80,7 @@ export function computeStandings(
   matches: MatchInput[],
   adjustments: AdjustmentInput[] = [],
   config: StandingsConfig = {},
+  options: StandingsOptions = {},
 ): StandingRow[] {
   const pts = { ...DEFAULT_POINTS, ...(config.points ?? {}) };
   const tiebreakers = config.tiebreakers ?? DEFAULT_TIEBREAKERS;
@@ -94,16 +104,20 @@ export function computeStandings(
       points: 0,
       pointsAdjustment: 0,
       adjustmentReasons: [],
+      live: false,
+      positionChange: 0,
     });
   }
 
   for (const m of matches) {
-    if (m.status !== 'finished') continue;
+    const isLive = m.status === 'live';
+    if (m.status !== 'finished' && !(isLive && options.includeLive)) continue;
     if (m.homeGoals === null || m.awayGoals === null) continue;
     const home = rows.get(m.homeClubId);
     const away = rows.get(m.awayClubId);
     // Un partido solo cuenta si ambos clubes participan de esta tabla.
     if (!home || !away) continue;
+    if (isLive) { home.live = true; away.live = true; }
 
     home.played++;
     away.played++;

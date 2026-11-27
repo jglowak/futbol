@@ -1,8 +1,8 @@
 ---
 import type { StandingRow } from '../lib/standings';
 import Crest from './Crest.astro';
-interface Props { rows: StandingRow[]; relegation?: number; snapshot?: boolean }
-const { rows, relegation = 0, snapshot = false } = Astro.props;
+interface Props { rows: StandingRow[]; relegation?: number; snapshot?: boolean; live?: boolean }
+const { rows, relegation = 0, snapshot = false, live = false } = Astro.props;
 const notes = snapshot ? [] : rows.filter((r) => r.adjustmentReasons.length > 0);
 ---
 <div class="card">
@@ -12,8 +12,10 @@ const notes = snapshot ? [] : rows.filter((r) => r.adjustmentReasons.length > 0)
     </thead>
     <tbody>
       {rows.map((r) => (
-        <tr class:list={{ relegation: relegation > 0 && r.position > rows.length - relegation }}>
-          <td>{r.position}</td>
+        <tr class:list={{ relegation: relegation > 0 && r.position > rows.length - relegation, 'row-live': live && r.live }}>
+          <td class="pos">{r.position}{live && r.positionChange !== 0 && (
+            <span class={r.positionChange > 0 ? 'up' : 'down'} title={`${r.positionChange > 0 ? 'Sube' : 'Baja'} ${Math.abs(r.positionChange)}`}>{r.positionChange > 0 ? '▲' : '▼'}</span>
+          )}</td>
           <td class="club"><Crest src={r.crestUrl} name={r.name} /> {r.slug ? <a class="club-link" href={`/club/${r.slug}`}><span class="full">{r.name}</span><span class="short">{r.shortName ?? r.name}</span></a> : <><span class="full">{r.name}</span><span class="short">{r.shortName ?? r.name}</span></>}{!snapshot && r.pointsAdjustment !== 0 && <sup> *</sup>}</td>
           <td>{r.played}</td><td>{r.won}</td><td>{r.drawn}</td><td>{r.lost}</td>
           <td>{r.goalsFor}</td><td>{r.goalsAgainst}</td>

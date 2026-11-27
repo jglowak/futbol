@@ -134,7 +134,12 @@ export async function getTablesForTournament(tournamentId: number): Promise<Tabl
 
 export interface ComputedTable {
   table: TableRow;
+  /** Tabla oficial: solo partidos finalizados. */
   rows: StandingRow[];
+  /** Tabla provisoria con los partidos en juego, o null si no hay ninguno. */
+  liveRows: StandingRow[] | null;
+  /** Cantidad de partidos de esta tabla que están en juego. */
+  liveCount: number;
 }
 
 /** Calcula una tabla (de una o varias etapas) con sus ajustes manuales. */
@@ -184,8 +189,31 @@ export async function getComputedTable(slug: string): Promise<ComputedTable | nu
     // config inválida: se usan los valores por defecto
   }
 
-  return {
-    table,
-    rows: computeStandings(clubsRes.results, matchesRes.results, adjRes.results, config),
-  };
+  const rows = computeStandings(clubsRes.results, matchesRes.results, adjRes.results, config);
+  const liveCount = matchesRes.results.filter((m) => m.status === 'live').length;
+
+  let liveRows: StandingRow[] | null = null;
+  if (liveCount > 0) {
+    liveRows = computeStandings(clubsRes.results, matchesRes.results, adjRes.results, config, { includeLive: true });
+    // Flechas: cuántos puestos subió o bajó cada club respecto de la tabla oficial.
+    const official = new Map(rows.map((r) => [r.clubId, r.position]));
+    for (const r of liveRows) r.positionChange = (official.get(r.clubId) ?? r.position) - r.position;
+  }
+
+  return { table, rows, liveRows, liveCount };
+}
+
+/** Cuántos descienden en esta tabla (solo aplica a la Anual, según la temporada). */
+export async function getTableRelegation(slug: string): Promise<number> {
+  if (!slug.startsWith('anual')) return 0;
+  const se = await env.DB.prepare(
+    `SELECT se.config FROM standing_tables st JOIN seasons se ON se.id = st.season_id WHERE st.slug = ?`,
+  )
+    .bind(slug)
+    .first<{ config: string }>();
+  try {
+    return JSON.parse(se?.config ?? '{}').relegation ?? 0;
+  } catch {
+    return 0;
+  }
 }

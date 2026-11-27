@@ -62,6 +62,15 @@ Sin ninguna de las dos, el panel queda cerrado. En local: `.dev.vars` con `ADMIN
 En producción está activo **Access** (código por mail, sesión de 7 días); "Salir" cierra también la sesión de Access.
 Las páginas públicas se actualizan en ~20 s (caché de borde).
 
+## Tabla en vivo
+
+Cada tabla tiene dos vistas: la **oficial** (solo partidos finalizados) y la **provisoria**, que suma
+los partidos en juego con el resultado parcial. Cuando hay partidos en juego la vista provisoria es
+la que se muestra por defecto, marcada con el punto rojo, con las filas de los clubes que están
+jugando resaltadas y una flecha ▲/▼ con los puestos que ganó o perdió cada uno respecto de la
+oficial. `?oficial=1` muestra la oficial. El bloque se refresca solo cada 20 s
+(`/partial/tabla/<slug>`, caché de borde 8 s). El cálculo vive en `computeStandings(..., { includeLive: true })`.
+
 ## Fixture desde el panel
 
 `/admin/torneos` → torneo → fechas con enlace a **editar** cada partido (etapa, serie, fecha, clubes, día/hora en

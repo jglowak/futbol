@@ -1,21 +1,20 @@
 ---
 import Base from '../../layouts/Base.astro';
-import StandingsTable from '../../components/StandingsTable.astro';
-import { getComputedTable } from '../../lib/db';
-import { env } from 'cloudflare:workers';
+import StandingsBlock from '../../components/StandingsBlock.astro';
+import { getComputedTable, getTableRelegation } from '../../lib/db';
 
 const { slug } = Astro.params;
 const computed = slug ? await getComputedTable(slug) : null;
 if (!computed) return new Response('Tabla no encontrada', { status: 404 });
+const oficial = Astro.url.searchParams.get('oficial') === '1';
 // Zona de descenso: solo en la Tabla Anual, según la configuración de la temporada.
-let relegation = 0;
-if (slug?.startsWith('anual')) {
-  const se = await env.DB.prepare(`SELECT se.config FROM standing_tables st JOIN seasons se ON se.id = st.season_id WHERE st.slug = ?`).bind(slug).first<{ config: string }>();
-  try { relegation = JSON.parse(se?.config ?? '{}').relegation ?? 0; } catch { relegation = 0; }
-}
+const relegation = await getTableRelegation(slug!);
+const refreshUrl = `/partial/tabla/${slug}${oficial ? '?oficial=1' : ''}`;
 ---
 <Base title={`${computed.table.name} — Fútbol`}>
   <h1>{computed.table.name}</h1>
-  <StandingsTable rows={computed.rows} relegation={relegation} snapshot={computed.table.config.includes('"snapshot":true')} />
+  <div data-refresh={refreshUrl} data-refresh-every="20000">
+    <StandingsBlock computed={computed} relegation={relegation} oficial={oficial} />
+  </div>
   {relegation > 0 && <p class="note">Los últimos {relegation} descienden a la Divisional B.</p>}
 </Base>

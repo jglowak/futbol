@@ -1,0 +1,11 @@
+---
+export const partial = true;
+import StandingsBlock from '../../../components/StandingsBlock.astro';
+import { getComputedTable, getTableRelegation } from '../../../lib/db';
+const { slug } = Astro.params;
+const computed = slug ? await getComputedTable(slug) : null;
+if (!computed) return new Response('Tabla no encontrada', { status: 404 });
+const oficial = Astro.url.searchParams.get('oficial') === '1';
+Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=8, stale-while-revalidate=20');
+---
+<StandingsBlock computed={computed} relegation={await getTableRelegation(slug!)} oficial={oficial} />
