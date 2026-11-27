@@ -58,7 +58,7 @@ const when = (iso: string) =>
     {m.tournament_name}{m.group_name ? ` · ${m.group_name}` : ''}{m.round ? ` · ${m.round}` : ''} · {formatKickoff(m.kickoff_at)}
   </p>
 
-  {isFinal && <div class="final-banner">✔ {finishedLabel(m.finished_at)}</div>}
+  {isFinal && <div class="final-banner">✔ {finishedLabel(m)}</div>}
   <div class="card">
     <div class="board">
       <div>

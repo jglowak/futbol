@@ -19,7 +19,7 @@ const showScore = isLive || m.status === 'finished';
     {pensText(m) && <div class="pens">{pensText(m)}</div>}
     <div class="state">
       {isLive ? <span class="live-dot">● En vivo{m.minute ? ` · ${m.minute}'` : ''}</span>
-        : m.status === 'finished' ? <span class="badge-final">{finishedLabel(m.finished_at)}</span>
+        : m.status === 'finished' ? <span class="badge-final">{finishedLabel(m)}</span>
         : m.status === 'scheduled' ? formatKickoff(m.kickoff_at)
         : STATUS_LABEL[m.status]}
     </div>

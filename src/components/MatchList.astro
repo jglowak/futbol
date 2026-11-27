@@ -16,7 +16,7 @@ const { matches, showTournament = false } = Astro.props;
         {m.status === 'live'
           ? <span class="live">● En vivo{m.minute ? ` ${m.minute}'` : ''}</span>
           : m.status === 'finished'
-            ? <span class="badge-final">{finishedLabel(m.finished_at)}</span>
+            ? <span class="badge-final">{finishedLabel(m)}</span>
             : <span>{formatKickoff(m.kickoff_at)}</span>}
         {m.group_name && <span> · {m.group_name}</span>}
         {m.venue && <span> · {m.venue}</span>}

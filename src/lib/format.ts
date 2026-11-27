@@ -31,9 +31,12 @@ export const STATUS_LABEL: Record<string, string> = {
 };
 
 /** "Finalizado · sáb 14/11 18:40" (hora de Uruguay). */
-export function finishedLabel(finishedAt: string | null): string {
-  if (!finishedAt) return 'Finalizado';
-  const d = new Date(finishedAt.endsWith('Z') || finishedAt.includes('+') ? finishedAt : finishedAt + 'Z');
+/** "Finalizado · <fecha del partido>". Usa la fecha de juego; si no hay, cuándo se marcó el final
+ *  (los partidos importados se marcaron finalizados el día de la importación, no el día que se jugaron). */
+export function finishedLabel(m: { finished_at: string | null; kickoff_at?: string | null }): string {
+  const when = m.kickoff_at ?? m.finished_at;
+  if (!when) return 'Finalizado';
+  const d = new Date(when.endsWith('Z') || when.includes('+') ? when : when + 'Z');
   const f = new Intl.DateTimeFormat('es-UY', { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' }).format(d);
   return `Finalizado · ${f}`;
 }
